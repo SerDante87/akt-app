@@ -21,13 +21,30 @@ function toast(t) {
 }
 
 // ---------- вкладки ----------
-document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
-  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.id === b.dataset.t));
-  $("actbar").classList.toggle("hide", b.dataset.t !== "act");
-  $("expbar").classList.toggle("hide", b.dataset.t !== "exp");
+// экраны: home — выбор документа, act / exp — документы, staff, arch. Вторая кнопка меню ведёт в открытый документ
+const DOCS = { act: { tab: "Акт", title: "Акт о проведении сервисных работ" }, exp: { tab: "Материалы", title: "Отчёт о покупке материалов" } };
+const TITLES = { home: "Документы", staff: "Сотрудники", arch: "Архив", act: DOCS.act.title, exp: DOCS.exp.title };
+let curDoc = null;
+function go(t) {
+  if (DOCS[t]) curDoc = t;
+  if (t === "home") {
+    const a = load(KEY.draft, null), e = load(KEY.expDraft, null);
+    $("hAct").textContent = a && (a.customer || a.machine) ? "Черновик: " + (a.customer || a.machine) : "Новый акт";
+    $("hExp").textContent = e && e.goal ? "Черновик: " + e.goal : "Чеки, номера ФД по фото, итог";
+  }
+  const dn = $("docBtn");
+  dn.classList.toggle("hide", !curDoc);
+  if (curDoc) { dn.dataset.t = curDoc; dn.textContent = DOCS[curDoc].tab; }
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.id === t));
+  $("actbar").classList.toggle("hide", t !== "act");
+  $("expbar").classList.toggle("hide", t !== "exp");
+  document.body.classList.toggle("home", t === "home");
+  $("ttl").textContent = TITLES[t];
   window.scrollTo(0, 0);
-});
+}
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => go(b.dataset.t));
+document.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => go(b.dataset.go));
 
 // ---------- диктовка ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -214,11 +231,11 @@ showSettings();
 // ---------- архив ----------
 function renderHist() {
   $("hList").innerHTML = hist.length ? "" : '<p class="empty">Пока пусто. Акт попадает сюда при сохранении DOCX или PDF.</p>';
-  const tab = (t) => document.querySelector(`nav button[data-t=${t}]`).click();
+  const tab = go;
   hist.forEach((h, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
     const ex = h.kind === "exp";
-    r.querySelector("b").textContent = ex ? "Расходы: " + (h.goal || "(без цели)") : h.customer || "(без заказчика)";
+    r.querySelector("b").textContent = ex ? "Материалы: " +(h.goal || "(без цели)") : h.customer || "(без заказчика)";
     r.querySelector("small").textContent = ex ? [h.checks.map((c) => "ФД " + c.fd).join(", "), rub(checksTotal(h.checks))].join(" · ")
       : [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ");
     const o = mk(`<button class="btn">Открыть</button>`);
@@ -458,10 +475,11 @@ $("qrFile").onchange = $("qrCam").onchange = async (e) => {
 
 // ---------- старт ----------
 renderHist();
-try { const dr = load(KEY.draft, null); if (dr) { curId = dr._id || null; fill(dr); if (dr._pv) openPreview(); } else fill({}); } catch { fill({}); }
+try { const dr = load(KEY.draft, null); if (dr) { curId = dr._id || null; fill(dr); if (dr._pv) { go("act"); openPreview(); } } else fill({}); } catch { fill({}); }
 try {
   const de = load(KEY.expDraft, null); curExpId = de?._id || null; fillExp(de || {});
-  if (de?._pv) { document.querySelector("nav button[data-t=exp]").click(); openPreview("exp"); }
+  if (de?._pv) { go("exp"); openPreview("exp"); }
 } catch { fillExp({}); }
+go(curDoc || "home"); // curDoc задан, только если восстановлен открытый просмотр
 mics();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

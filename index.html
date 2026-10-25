@@ -47,6 +47,18 @@ nav button{min-height:48px;padding:0 20px;background:none;border:0;border-bottom
 nav button.on{color:var(--ink);border-color:var(--ink)}
 @media (max-width:819px){nav{flex:1 1 100%}nav button{flex:1;padding:0}}
 @media (max-width:420px){nav button{font-size:15px}} /* четыре вкладки в ширину телефона без слипания */
+#homeBtn{flex:0 0 56px;padding:0;display:grid;place-items:center}
+
+/* стартовый экран: выбор документа */
+.docs{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;max-width:720px}
+.doc{display:flex;align-items:center;gap:16px;min-height:88px;padding:14px 18px;background:var(--surf);border:1.5px solid var(--ink);border-radius:var(--r);text-align:left;cursor:pointer;font-weight:600;transition:transform .12s var(--ease)}
+.doc:active{transform:scale(.99);background:var(--acc-soft)}
+.doc>span{flex:1;min-width:0}
+.doc b{display:block;font-size:18px;line-height:1.3}
+.doc small{display:block;font-weight:450;color:var(--mut);font-size:14px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc:disabled{border:1.5px dashed var(--line);opacity:.6;cursor:default}
+.doc:disabled:active{transform:none;background:var(--surf)}
+body.home{padding-bottom:calc(var(--fB) + 20px)}
 
 main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(var(--fL) + 16px)}
 .tab{display:none}.tab.on{display:block}
@@ -207,7 +219,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 }
 </style>
 </head>
-<body>
+<body class="home">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -218,21 +230,35 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></symbol>
 <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/></symbol>
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
-<symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></symbol>
+<symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h3l2 11h10l2-8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
+<symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3 3 0 0 0-5 1.5c0 3 5 1.5 5 4.500a3 3 0 0 1-5 1.500M12 6.500v1.500M12 16v1.500"/></symbol>
+<symbol id="i-cam"viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></symbol>
 <symbol id="i-new"viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
 </defs></svg>
 
 <header>
-  <h1>Акт о проведении сервисных работ</h1>
+  <h1 id="ttl">Документы</h1>
   <nav>
-    <button data-t="act" class="on">Акт</button>
-    <button data-t="exp">Расходы</button>
+    <button data-t="home" class="on" id="homeBtn" aria-label="Документы"><svg class="ic"><use href="#i-home"/></svg></button>
+    <button data-t="act" class="hide" id="docBtn"></button>
     <button data-t="staff">Сотрудники</button>
     <button data-t="arch">Архив</button>
   </nav>
 </header>
 <main>
-<section class="tab on" id="act">
+<section class="tab on" id="home">
+ <div class="sec">
+  <h2>Выберите документ</h2>
+  <div class="docs">
+   <button type="button" class="doc" data-go="act"><svg class="ic"><use href="#i-file"/></svg><span><b>Акт сервисных работ</b><small id="hAct"></small></span><svg class="ic"><use href="#i-next"/></svg></button>
+   <button type="button" class="doc" data-go="exp"><svg class="ic"><use href="#i-cart"/></svg><span><b>Отчёт о покупке вспомогательных материалов</b><small id="hExp"></small></span><svg class="ic"><use href="#i-next"/></svg></button>
+   <button type="button" class="doc" disabled><svg class="ic"><use href="#i-coin"/></svg><span><b>Отчёт о хозрасходах</b><small>Скоро</small></span></button>
+  </div>
+ </div>
+</section>
+
+<section class="tab" id="act">
  <aside id="rail" aria-label="Разделы акта"></aside>
  <div class="grid">
   <div class="sec full" data-s="type">
@@ -289,7 +315,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <section class="tab" id="exp">
  <div class="grid">
   <div class="sec">
-    <h2>Отчёт о хозрасходах</h2>
+    <h2>Отчёт о покупке материалов</h2>
     <div class="fld" data-k="goal"><label for="goal">Цель</label><div class="inw m"><textarea id="goal" style="min-height:96px"></textarea></div><p class="hint">Например: приобретение вспомогательных материалов для WSBJ500 при ПНР (договор …)</p><p class="err">Укажите цель расходов</p></div>
     <div class="fld"><label for="dept">Подразделение</label><div class="inw"><input id="dept" data-set="dept" autocomplete="off"></div></div>
   </div>
@@ -348,7 +374,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 </section>
 </main>
 
-<div class="bar" id="actbar"><div class="tb">
+<div class="bar hide" id="actbar"><div class="tb">
   <div class="tbc"><small>Заказчик</small><b id="tbC"></b></div>
   <div class="tbc"><small>Станок</small><b id="tbM"></b></div>
   <div class="tbc sm"><small>Дата</small><b id="tbD"></b></div>
