@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Акты сервисных работ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{
+  --bg:#f4f1ea;--surf:#fff;--ink:#1c2631;--mut:#5b6573;--line:#cfc9bc;--line2:#e5e0d4;
+  --acc:#1f4e79;--acc-ink:#fff;--acc-soft:#e3ecf5;--ok:#1d7a45;--bad:#b42318;--bad-soft:#fdeceb;
+  --r:14px;--tap:56px;--ease:cubic-bezier(.16,1,.3,1);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#11161d;--surf:#1a222c;--ink:#e8edf3;--mut:#a3adba;--line:#3a4655;--line2:#27313d;
+  --acc:#6aa5dc;--acc-ink:#071420;--acc-soft:#1d3247;--ok:#4cc27f;--bad:#ff8a80;--bad-soft:#3a1e1c}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  touch-action:manipulation;padding-bottom:calc(var(--tap) + 36px + env(safe-area-inset-bottom))}
+::selection{background:var(--acc);color:var(--acc-ink)}
+input,textarea,button,select{font:inherit;color:inherit;caret-color:var(--acc)}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.ic{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* шапка и вкладки */
+header{position:sticky;top:0;z-index:5;background:var(--acc);color:var(--acc-ink);padding:env(safe-area-inset-top) max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+header h1{font-size:18px;font-weight:650;margin:0;padding:12px 0 4px}
+nav{display:flex;gap:4px;max-width:980px;margin:0 auto}
+nav button{flex:1;min-height:48px;background:none;border:0;border-bottom:4px solid transparent;font-weight:600;opacity:.72;cursor:pointer}
+nav button.on{opacity:1;border-color:currentColor}
+
+main{max-width:980px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+.tab{display:none}.tab.on{display:block}
+.grid{display:grid;gap:30px 48px}
+@media(min-width:900px){.grid{grid-template-columns:1fr 1fr}.full{grid-column:1/-1}}
+.sec h2{font-size:19px;font-weight:650;margin:0 0 14px;letter-spacing:-.005em}
+.sec+.sec{margin-top:0}
+
+/* поля */
+.fld{margin-bottom:16px}
+.fld>label,.lbl{display:block;font-size:15px;font-weight:550;color:var(--mut);margin:0 0 6px}
+.inw{position:relative;display:flex;align-items:stretch}
+.in,.inw>input,.inw>textarea{width:100%;min-height:var(--tap);background:var(--surf);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px;font-size:17px;appearance:none}
+.inw>textarea{min-height:132px;resize:vertical;line-height:1.5}
+.inw.m>input,.inw.m>textarea{padding-right:64px}
+.mic{position:absolute;right:6px;top:6px;width:44px;height:44px;border-radius:50%;border:0;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;cursor:pointer}
+.mic.rec{background:var(--bad);color:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--bad) 25%,transparent)}}
+.hint{font-size:14px;color:var(--mut);margin:6px 2px 0}
+.err{display:none;font-size:14px;color:var(--bad);margin:6px 2px 0;font-weight:550}
+.bad .err{display:block}
+.bad>.inw>input,.bad>.inw>textarea,input.bad,.bad .in{border-color:var(--bad);background:var(--bad-soft)}
+
+/* крупные переключатели */
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:620px){.seg{grid-template-columns:1fr}}
+.seg label,.chip{position:relative;display:flex;align-items:center;gap:12px;min-height:var(--tap);padding:10px 14px;background:var(--surf);border:1.5px solid var(--line);border-radius:var(--r);cursor:pointer;font-weight:600}
+.seg input,.chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked),.chip:has(input:checked){border-color:var(--acc);background:var(--acc-soft);box-shadow:inset 0 0 0 1.5px var(--acc)}
+.seg label:has(input:focus-visible),.chip:has(input:focus-visible){outline:3px solid var(--acc);outline-offset:2px}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center}
+:checked~.dot{border-color:var(--acc)}:checked~.dot::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip small{display:block;font-weight:450;color:var(--mut);font-size:13px}
+
+/* переключатель «запчасти» */
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap);padding:8px 14px;background:var(--surf);border:1.5px solid var(--line);border-radius:var(--r);cursor:pointer;font-weight:600;position:relative}
+.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.sw i{width:52px;height:32px;border-radius:16px;background:var(--line);position:relative;transition:background .2s var(--ease);flex:none}
+.sw i::after{content:"";position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .2s var(--ease)}
+.sw input:checked+i{background:var(--acc)}.sw input:checked+i::after{transform:translateX(20px)}
+.sw:has(input:focus-visible){outline:3px solid var(--acc);outline-offset:2px}
+
+/* строки запчастей и работ */
+.item{background:var(--surf);border:1.5px solid var(--line2);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.item .fld{margin-bottom:12px}
+.irow{display:grid;gap:12px;grid-template-columns:repeat(3,1fr)}
+.irow .wide{grid-column:span 2}
+@media(max-width:560px){.irow{grid-template-columns:1fr 1fr}.irow .wide{grid-column:1/-1}}
+.step{display:grid;grid-template-columns:var(--tap) 1fr var(--tap);align-items:stretch;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surf)}
+.step.bad{border-color:var(--bad);background:var(--bad-soft)}
+.step button{border:0;background:var(--acc-soft);color:var(--acc);min-height:var(--tap);cursor:pointer;display:grid;place-items:center}
+.step button:active{background:var(--acc);color:var(--acc-ink)}
+.step input{border:0;background:none;text-align:center;font-size:19px;font-weight:650;min-width:0;width:100%;padding:0;min-height:var(--tap)}
+.step input:focus-visible{outline-offset:-3px}
+.item .del{margin-top:2px}
+
+/* кнопки */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:var(--tap);padding:0 20px;border-radius:var(--r);border:1.5px solid var(--line);background:var(--surf);font-weight:650;cursor:pointer;transition:transform .12s var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn.p{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.btn.d{color:var(--bad);border-color:transparent;background:none;min-height:48px}
+.btn.w{width:100%}
+.row2{display:flex;gap:10px;flex-wrap:wrap}.row2>.btn{flex:1}
+
+/* списки */
+.list .it{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line2)}
+.list .it>div{flex:1;min-width:0}
+.list b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list small{color:var(--mut);display:block;font-size:14px}
+.list .btn{min-height:48px;padding:0 14px}
+.empty{color:var(--mut);padding:8px 0}
+
+/* нижняя панель действий */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:4;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.bar>div{max-width:980px;margin:0 auto;display:flex;gap:10px}
+.bar .btn:first-child{flex:0 0 auto}.bar .btn.p{flex:1}
+.hide{display:none!important}
+
+/* просмотр */
+#pv{position:fixed;inset:0;z-index:10;background:#4b5563;overflow:auto;display:none;-webkit-overflow-scrolling:touch}
+#pv.on{display:block;animation:up .24s var(--ease)}
+@keyframes up{from{transform:translateY(14px);opacity:0}}
+#pv .pbar{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+#pv .pbar>div{max-width:980px;margin:0 auto;display:flex;gap:8px}
+#pv .pbar .btn{padding:0 14px}
+#pv .pbar .btn.p{flex:1}
+#pvpage{padding:12px 0 40px}
+#pvpage .docx-wrapper{background:none;padding:0}
+#pvpage section.docx{margin:0 auto;background:#fff;color:#000;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tap) + 36px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;z-index:20;display:none;font-weight:600;max-width:90vw}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{
+  @page{size:A4;margin:0}
+  body>*:not(#pv){display:none!important}
+  body{padding:0;background:#fff}
+  #pv{position:static;background:#fff;overflow:visible;display:block;animation:none}
+  #pv .pbar{display:none}
+  #pvpage{padding:0;zoom:1!important}
+  #pvpage section.docx{margin:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-new" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
+</defs></svg>
+
+<header>
+  <h1>Акт о проведении сервисных работ</h1>
+  <nav>
+    <button data-t="act" class="on">Акт</button>
+    <button data-t="staff">Сотрудники</button>
+    <button data-t="arch">Архив</button>
+  </nav>
+</header>
+<main>
+<section class="tab on" id="act">
+ <div class="grid">
+  <div class="sec full">
+    <h2>Тип работ</h2>
+    <div class="seg" id="warranty">
+      <label><input type="radio" name="w" value="warranty" checked><span class="dot"></span>Гарантия</label>
+      <label><input type="radio" name="w" value="none"><span class="dot"></span>Нет гарантии</label>
+      <label><input type="radio" name="w" value="commission"><span class="dot"></span>Ввод в эксплуатацию</label>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Заказчик и станок</h2>
+    <div class="fld" data-k="customer"><label for="customer">Заказчик</label><div class="inw m"><input id="customer" list="dl-customer" autocomplete="off" enterkeyhint="next"></div><p class="err">Укажите заказчика</p></div>
+    <div class="fld"><label for="address">Адрес проведения работ</label><div class="inw m"><input id="address" list="dl-address" autocomplete="off" enterkeyhint="next"></div></div>
+    <div class="fld" data-k="machine"><label for="machine">Тип станка</label><div class="inw m"><input id="machine" list="dl-machine" autocomplete="off" enterkeyhint="next"></div><p class="err">Укажите тип станка</p></div>
+    <div class="fld"><label for="serial">Заводской номер</label><div class="inw m"><input id="serial" autocomplete="off" enterkeyhint="next"></div></div>
+    <div class="fld"><label for="contract">Договор или контракт</label><div class="inw m"><input id="contract" list="dl-contract" autocomplete="off" enterkeyhint="done"></div></div>
+    <datalist id="dl-customer"></datalist><datalist id="dl-address"></datalist>
+    <datalist id="dl-machine"></datalist><datalist id="dl-contract"></datalist>
+  </div>
+
+  <div class="sec">
+    <h2>Что сделано</h2>
+    <div class="fld"><label for="request">Содержание запроса</label><div class="inw m"><textarea id="request"></textarea></div></div>
+    <div class="fld" data-k="works"><label for="works">Виды работ и заключение</label><div class="inw m"><textarea id="works"></textarea></div><p class="hint">Новая строка — новая строка в акте.</p><p class="err">Опишите выполненные работы</p></div>
+    <div class="fld"><label for="remarks">Замечания</label><div class="inw m"><textarea id="remarks" style="min-height:84px"></textarea></div></div>
+  </div>
+
+  <div class="sec full">
+    <h2>Запчасти</h2>
+    <label class="sw"><span>Запчасти использовались</span><input type="checkbox" id="partsOn"><i></i></label>
+    <div id="partsBox" class="hide" style="margin-top:14px">
+      <div id="parts"></div>
+      <button class="btn w" id="addPart" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить позицию</button>
+    </div>
+  </div>
+
+  <div class="sec full" id="laborCard">
+    <h2>Трудозатраты</h2>
+    <p class="hint" style="margin:-8px 0 14px">Обязательно при «Нет гарантии» и «Ввод в эксплуатацию».</p>
+    <div id="labor"></div>
+    <button class="btn w" id="addLabor" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить день работ</button>
+  </div>
+
+  <div class="sec full">
+    <h2>Подписание</h2>
+    <div class="fld"><label for="date">Дата акта</label><input class="in" type="date" id="date" style="max-width:320px"></div>
+    <div class="fld" data-k="engineer"><span class="lbl">Сервисный инженер</span><div class="chips" id="engineer"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
+  </div>
+ </div>
+</section>
+
+<section class="tab" id="staff">
+ <div class="grid">
+  <div class="sec">
+    <h2>Новый сотрудник</h2>
+    <div class="fld"><label for="sName">Ф. И. О. как в подписи</label><div class="inw"><input id="sName" autocomplete="off" placeholder="Иванов И. И."></div></div>
+    <div class="fld"><label for="sPos">Должность</label><div class="inw"><input id="sPos" value="сервисный инженер" autocomplete="off"></div></div>
+    <button class="btn p w" id="sAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить в список</button>
+  </div>
+  <div class="sec">
+    <h2>Список</h2>
+    <div class="list" id="sList"></div>
+    <div class="fld" style="margin-top:26px"><label for="manufacturer">Производитель в шапке акта</label><div class="inw"><input id="manufacturer" autocomplete="off"></div></div>
+  </div>
+ </div>
+</section>
+
+<section class="tab" id="arch">
+ <div class="grid">
+  <div class="sec">
+    <h2>Сохранённые акты</h2>
+    <div class="list" id="hList"></div>
+  </div>
+  <div class="sec">
+    <h2>Резервная копия</h2>
+    <div class="row2"><button class="btn" id="exp" type="button">Экспорт</button><button class="btn" id="imp" type="button">Импорт</button></div>
+    <input type="file" id="impFile" accept=".json" class="hide">
+    <p class="hint">Данные хранятся только в браузере этого устройства. Экспорт переносит сотрудников и акты на другое устройство.</p>
+  </div>
+ </div>
+</section>
+</main>
+
+<div class="bar" id="actbar"><div>
+  <button class="btn" id="newAct" type="button" aria-label="Новый акт"><svg class="ic"><use href="#i-new"/></svg>Новый</button>
+  <button class="btn p" id="preview" type="button"><svg class="ic"><use href="#i-eye"/></svg>Просмотр акта</button>
+</div></div>
+
+<div id="pv">
+  <div class="pbar"><div>
+    <button class="btn" id="pvClose" type="button"><svg class="ic"><use href="#i-back"/></svg>Правка</button>
+    <button class="btn p" id="pvDocx" type="button"><svg class="ic"><use href="#i-file"/></svg>DOCX</button>
+    <button class="btn p" id="pvPdf" type="button"><svg class="ic"><use href="#i-print"/></svg>PDF</button>
+  </div></div>
+  <div id="pvpage"></div>
+</div>
+<div id="toast" role="status"></div>
+
+<script src="lib/docx.js"></script>
+<script>window.DOCXLIB=window.docx;</script>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/docx-preview.js"></script>
+<script>window.DOCXPREV=window.docx;</script>
+<script src="gen.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
