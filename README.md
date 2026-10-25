@@ -3,23 +3,7 @@
 Офлайн-приложение (PWA) для iPad и телефона: форма → предпросмотр → DOCX / PDF акта «Акт о проведении сервисных работ».
 Все данные (заказчики, акты, сотрудники) остаются в браузере устройства и никуда не отправляются. В этом репозитории только код.
 
-## Публикация на GitHub Pages (один раз)
 
-1. На github.com: **New repository** → имя `akt-app` → **Public** (бесплатные Pages работают только для публичных репозиториев) → без README, .gitignore и лицензии → **Create**.
-2. В папке `akt-app` выполнить (подставьте свой логин и свои имя/почту для коммита):
-
-   ```powershell
-   cd "D:\Yandex.Disk\GearProduction\Акты выполненных работ\akt-app"
-   git config user.name "Ваше Имя"
-   git config user.email "you@example.com"
-   git commit -m "Первая версия"
-   git remote add origin https://github.com/<ЛОГИН>/akt-app.git
-   git push -u origin main
-   ```
-
-   Если запрашивается вход, GitHub открывает окно авторизации в браузере (или используйте Personal Access Token вместо пароля).
-3. В репозитории: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` / `/ (root)` → Save**.
-4. Через 1–2 минуты адрес появится вверху той же страницы: `https://<ЛОГИН>.github.io/akt-app/`.
 
 ## Установка на устройства
 
