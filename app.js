@@ -125,6 +125,7 @@ function collect() {
 }
 
 function fill(d) {
+  step = 0;
   document.querySelector(`input[name=w][value=${d.warranty || "warranty"}]`).checked = true;
   TEXT.forEach((k) => ($(k).value = d._txt?.[k] ?? ""));
   $("date").value = d._iso || todayISO();
@@ -142,8 +143,12 @@ function sync() {
   $("partsBox").classList.toggle("hide", !$("partsOn").checked);
   if ($("partsOn").checked && !$("parts").children.length) addPart();
   if (w !== "warranty" && !$("labor").children.length) addLabor();
+  refreshSteps();
 }
-function persist() { save(KEY.draft, { ...collect(), _id: curId }); }
+// _pv: просмотр был открыт — мобильный браузер после скачивания файла перезагружает страницу
+function persist() { save(KEY.draft, { ...collect(), _id: curId, _pv: $("pv").classList.contains("on") }); }
+addEventListener("pagehide", persist);
+document.addEventListener("visibilitychange", () => { if (document.hidden) persist(); });
 $("act").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); persist(); });
 $("act").addEventListener("change", () => { sync(); persist(); });
 
@@ -246,6 +251,7 @@ async function openPreview() {
   const d = collect(), bad = validate(d);
   if (bad.length) {
     toast("Заполните отмеченные поля");
+    revealEl(bad[0]);
     bad[0].scrollIntoView({ block: "center", behavior: "smooth" });
     return;
   }
@@ -254,13 +260,13 @@ async function openPreview() {
     lastBlob = await DOCXLIB.Packer.toBlob(buildDoc(DOCXLIB, d));
     const box = $("pvpage"); box.innerHTML = ""; box.style.zoom = 1;
     await DOCXPREV.renderAsync(lastBlob, box, null, { inWrapper: false, breakPages: true });
-    $("pv").classList.add("on"); document.body.style.overflow = "hidden";
+    $("pv").classList.add("on"); document.body.style.overflow = "hidden"; persist();
     const sec = box.querySelector("section");
     if (sec) box.style.zoom = Math.min(1, (window.innerWidth - 12) / sec.offsetWidth);
   } catch (e) { console.error(e); toast("Ошибка сборки акта"); }
 }
 $("preview").onclick = openPreview;
-$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; };
+$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; persist(); };
 $("pvDocx").onclick = () => { dl(lastBlob, fname(lastData)); archive({ ...lastData }); toast("DOCX сохранён"); };
 // PDF собирается в приложении из отрисованных листов: системная печать в установленном PWA ненадёжна
 async function makePdf() {
@@ -290,8 +296,48 @@ $("newAct").onclick = () => {
   curId = null; fill({ warranty: "warranty", _eng: engIdx }); persist(); window.scrollTo(0, 0);
 };
 
+// ---------- листы: шаги на телефоне, оглавление и основная надпись на планшете ----------
+const narrow = matchMedia("(max-width:819px)");
+let step = 0;
+const secs = () => [...document.querySelectorAll("#act .sec")].filter((s) => !s.classList.contains("hide"));
+const SEC_DONE = {
+  type: () => true,
+  obj: () => $("customer").value.trim() && $("machine").value.trim(),
+  work: () => $("works").value.trim(),
+  parts: () => !$("partsOn").checked || [...$("parts").querySelectorAll("[data-f=name]")].some((i) => i.value.trim()),
+  labor: () => $("labor").children.length && [...$("labor").querySelectorAll("[data-f=work]")].every((i) => num(i.value) > 0),
+  sign: () => staff.length > 0,
+};
+function showStep(i) { step = i; refreshSteps(); window.scrollTo(0, 0); }
+function revealEl(el) { const j = secs().findIndex((s) => s.contains(el)); if (j >= 0 && narrow.matches) showStep(j); }
+function refreshSteps() {
+  const s = secs();
+  step = Math.max(0, Math.min(step, s.length - 1));
+  s.forEach((x, j) => x.classList.toggle("cur", j === step));
+  const title = (x) => x.querySelector("h2").textContent;
+  $("stN").textContent = step + 1; $("stT").textContent = s.length; $("stName").textContent = title(s[step]);
+  $("ticks").innerHTML = s.map((_, j) => `<i class="${j < step ? "done" : j === step ? "cur" : ""}"></i>`).join("");
+  $("stPrev").disabled = step === 0;
+  document.body.classList.toggle("last", step === s.length - 1);
+  $("rail").innerHTML = "<p>Разделы</p>";
+  s.forEach((x, j) => {
+    const b = mk(`<button type="button" class="rl"><i class="mk"></i><span></span></button>`);
+    b.querySelector("span").textContent = title(x);
+    b.classList.toggle("done", !!SEC_DONE[x.dataset.s]());
+    b.onclick = () => (narrow.matches ? showStep(j) : x.scrollIntoView({ behavior: "smooth", block: "start" }));
+    $("rail").appendChild(b);
+  });
+  $("tbC").textContent = $("customer").value.trim() || "—";
+  $("tbM").textContent = [$("machine").value.trim(), $("serial").value.trim()].filter(Boolean).join(" № ") || "—";
+  $("tbD").textContent = fmtShort($("date").value) || "—";
+}
+$("stPrev").onclick = () => showStep(step - 1);
+$("stNext").onclick = () => showStep(step + 1);
+$("act").addEventListener("input", refreshSteps);
+narrow.addEventListener("change", refreshSteps);
+
 // ---------- старт ----------
 renderHist();
-try { const dr = load(KEY.draft, null); if (dr) { curId = dr._id || null; fill(dr); } else fill({}); } catch { fill({}); }
+try { const dr = load(KEY.draft, null); if (dr) { curId = dr._id || null; fill(dr); if (dr._pv) openPreview(); } else fill({}); } catch { fill({}); }
 mics();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
