@@ -262,7 +262,29 @@ async function openPreview() {
 $("preview").onclick = openPreview;
 $("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; };
 $("pvDocx").onclick = () => { dl(lastBlob, fname(lastData)); archive({ ...lastData }); toast("DOCX сохранён"); };
-$("pvPdf").onclick = () => { archive({ ...lastData }); document.title = fname(lastData).replace(/\.docx$/, ""); window.print(); document.title = "Акты сервисных работ"; };
+// PDF собирается в приложении из отрисованных листов: системная печать в установленном PWA ненадёжна
+async function makePdf() {
+  const box = $("pvpage"), z = box.style.zoom; box.style.zoom = 1;
+  try {
+    const pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
+    const secs = [...box.querySelectorAll("section")];
+    for (let i = 0; i < secs.length; i++) {
+      const c = await html2canvas(secs[i], { scale: 2, backgroundColor: "#ffffff" });
+      if (i) pdf.addPage();
+      const h = 210 * c.height / c.width, k = h > 297 ? 297 / h : 1; // не сжимать: если лист выше A4, вписать целиком
+      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", (210 - 210 * k) / 2, 0, 210 * k, h * k);
+    }
+    return pdf.output("blob");
+  } finally { box.style.zoom = z; }
+}
+$("pvPdf").onclick = async () => {
+  const b = $("pvPdf"); b.disabled = true; toast("Готовлю PDF…");
+  try {
+    dl(await makePdf(), fname(lastData).replace(/\.docx$/, ".pdf"));
+    archive({ ...lastData }); toast("PDF сохранён");
+  } catch (e) { console.error(e); toast("Не удалось создать PDF"); }
+  b.disabled = false;
+};
 $("newAct").onclick = () => {
   if (!confirm("Очистить форму для нового акта?")) return;
   curId = null; fill({ warranty: "warranty", _eng: engIdx }); persist(); window.scrollTo(0, 0);

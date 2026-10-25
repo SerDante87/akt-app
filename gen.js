@@ -120,27 +120,41 @@ function buildDoc(docx, d) {
   const table = mkTable(rows);
 
   const L = (t) => run(t, { size: 16 });
-  const tab = (...pos) => ({ tabStops: pos.map((p) => ({ type: TabStopType.LEFT, position: p })) });
-  const line = "_______________";
-  const fio = d.engineerName || "___________________________";
-  const customer = d.customer || "____________________________";
+  // Подвал — таблица без рамок: табуляции в разных просмотрщиках (Telegram, WPS, телефон) разъезжаются
+  const NB = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const noB = { top: NB, bottom: NB, left: NB, right: NB };
+  const ul = { ...noB, bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" } };
+  const FW = [1700, 200, 2600, 200, 846, 1700, 200, 2600, 200];
+  const fspan = (a, n) => FW.slice(a, a + n).reduce((s, x) => s + x, 0);
+  const fc = (a, n, children, borders = noB, v = VerticalAlign.BOTTOM) => new TableCell({
+    columnSpan: n > 1 ? n : undefined, width: { size: fspan(a, n), type: WidthType.DXA }, borders, verticalAlign: v,
+    margins: { left: 40, right: 40, top: 0, bottom: 0 }, children,
+  });
+  const cp = (t, o = {}, al = AlignmentType.CENTER) => para([run(t, o)], { alignment: al });
+  const cap = (t) => cp(t, { size: 16 });
+  const fr = (cells, h) => new TableRow({ cantSplit: true, height: { value: h, rule: HeightRule.ATLEAST }, children: cells });
+  const footer = new Table({
+    columnWidths: FW, layout: TableLayoutType.FIXED, width: { size: fspan(0, 9), type: WidthType.DXA },
+    borders: { top: NB, bottom: NB, left: NB, right: NB, insideHorizontal: NB, insideVertical: NB },
+    rows: [
+      fr([fc(0, 4, [cp("От ООО \"Вебер Комеханикс\"", { bold: true, underline: {} }, AlignmentType.LEFT)]), fc(4, 1, [para([])]),
+        fc(5, 4, [para([run("От Заказчика   ", { bold: true }), run(d.customer || "", { bold: true, underline: {} })])])], 300),
+      fr([fc(0, 5, [para([])]), fc(5, 4, [cap("Предприятие")], noB, VerticalAlign.TOP)], 260),
+      fr([fc(0, 1, [para([])], ul), fc(1, 1, [cp("/")]), fc(2, 1, [cp(d.engineerName || "")], ul), fc(3, 1, [cp("/")]), fc(4, 1, [para([])]),
+        fc(5, 1, [para([])], ul), fc(6, 1, [cp("/")]), fc(7, 1, [para([])], ul), fc(8, 1, [cp("/")])], 500),
+      fr([fc(0, 1, [cap("Подпись")], noB, VerticalAlign.TOP), fc(1, 1, [para([])]), fc(2, 1, [cap("Ф. И. О.")], noB, VerticalAlign.TOP), fc(3, 1, [para([])]), fc(4, 1, [para([])]),
+        fc(5, 1, [cap("Подпись")], noB, VerticalAlign.TOP), fc(6, 1, [para([])]), fc(7, 1, [cap("Ф. И. О.")], noB, VerticalAlign.TOP), fc(8, 1, [para([])])], 260),
+      fr([fc(0, 4, [cp(d.engineerPos || "сервисный инженер", { bold: true })]), fc(4, 1, [para([])]), fc(5, 4, [para([])], ul)], 440),
+      fr([fc(0, 5, [para([])]), fc(5, 4, [cap("Должность")], noB, VerticalAlign.TOP)], 260),
+    ],
+  });
 
   const after = [
     para([run("К количеству и качеству работ Заказчик претензий не имеет. Настоящим подтверждаем все, что изложено в настоящем Акте.", { bold: true, italics: true })], { spacing: { before: 120, after: 0 } }),
-    para([run("Дата        ", { bold: true }), run(d.dateText || "« _____ » ______________ 202   г.", { bold: true })]),
-    para([]),
-    para([
-      run("От ООО \"Вебер Комеханикс\"", { bold: true, underline: {} }),
-      run("\tОт Заказчика\t", { bold: true }),
-      run(" " + customer + " ", { bold: true, underline: {} }),
-    ], tab(4500, 5900)),
-    para([L("\t\t\tПредприятие")], tab(4500, 5900, 7000)),
-    para([]),
-    para([run(line + "   / "), run(" " + fio + " ", { underline: {} }), run(" /\t" + line + "   / ______________________ /")], tab(5600)),
-    para([L("\tПодпись\tФ. И. О.\tПодпись\tФ. И. О.")], tab(500, 2300, 5900, 7900)),
-    para([]),
-    para([run("\t" + (d.engineerPos || "сервисный инженер"), { bold: true }), run("\t____________________________")], tab(1400, 6200)),
-    para([L("\t\tДолжность")], tab(1400, 6200)),
+    para([run("Дата        ", { bold: true }), run(d.dateText || "« _____ » ______________ 202   г.", { bold: true })], { spacing: { before: 0, after: 160 } }),
+    footer,
+    // Word требует абзац после таблицы; делаем его почти нулевой высоты, чтобы не уходил на новую страницу
+    para([run("", { size: 2 })], { spacing: { before: 0, after: 0, line: 20, lineRule: "exact" } }),
   ];
 
   const properties = { page: { size: { width: 11906, height: 16838 }, margin: { top: 700, bottom: 600, left: 600, right: 1060 } } };
