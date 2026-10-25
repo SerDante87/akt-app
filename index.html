@@ -20,7 +20,7 @@
   --acc:#14409a;--acc-ink:#fff;--acc-soft:#e6ecf8;--bad:#b3261e;--bad-soft:#fbe9e7;
   --r:3px;--tap:56px;--ease:cubic-bezier(.16,1,.3,1);
   --fT:calc(8px + env(safe-area-inset-top));--fR:calc(8px + env(safe-area-inset-right));
-  --fB:calc(8px + env(safe-area-inset-bottom));--fL:calc(8px + env(safe-area-inset-left));
+  --fB:max(8px,env(safe-area-inset-bottom));--fL:calc(8px + env(safe-area-inset-left));
   --barh:82px;
 }
 @media (max-width:819px){:root{--barh:142px}}
@@ -31,7 +31,8 @@
 html{-webkit-text-size-adjust:100%;scrollbar-color:var(--line) transparent}
 body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   touch-action:manipulation;padding-bottom:calc(var(--barh) + var(--fB) + 20px)}
-body::before{content:"";position:fixed;inset:var(--fT) var(--fR) var(--fB) var(--fL);border:2px solid var(--ink);pointer-events:none;z-index:6}
+body::before{content:"";position:fixed;inset:var(--fT) var(--fR) var(--fB) var(--fL);border:2px solid var(--ink);pointer-events:none;z-index:6;
+  box-shadow:0 0 0 100vmax var(--paper)} /* поля за рамкой глухие: прокрученная форма не видна над шапкой и под надписью */
 ::selection{background:var(--acc);color:var(--acc-ink)}
 input,textarea,button,select{font:inherit;color:inherit;caret-color:var(--acc)}
 :focus-visible{outline:3px solid var(--acc);outline-offset:2px}
