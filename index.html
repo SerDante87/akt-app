@@ -127,6 +127,9 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .step input{border:0;background:none;text-align:center;font-size:19px;font-weight:650;min-width:0;width:100%;padding:0;min-height:var(--tap);font-variant-numeric:tabular-nums}
 .step input:focus-visible{outline-offset:-3px}
 .item .del{margin-top:2px}
+.item>.btn.w{margin-bottom:14px}
+#exp .grid{grid-auto-flow:dense} /* «Подписи» встают рядом с «Отчётом», на телефоне остаются после чеков */
+.tot{margin:16px 2px 0;font-size:19px}
 
 /* кнопки */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:var(--tap);padding:0 20px;border-radius:var(--r);border:1.5px solid var(--ink);background:var(--surf);font-weight:650;cursor:pointer;transition:transform .12s var(--ease)}
@@ -167,7 +170,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   .tb-act{padding:8px 12px}
   .tb-act .st{display:inline-flex}
   #stNext,#preview{flex:1}
-  #newAct{padding:0;width:var(--tap)}#newAct .lb{display:none}
+  #newAct,#expNew{padding:0;width:var(--tap)}#newAct .lb,#expNew .lb{display:none}#expPreview{flex:1}
   #preview{display:none}
   body.last #preview{display:inline-flex}body.last #stNext{display:none}
 }
@@ -214,13 +217,15 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></symbol>
 <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/></symbol>
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
-<symbol id="i-new" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
+<symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-new"viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
 </defs></svg>
 
 <header>
   <h1>Акт о проведении сервисных работ</h1>
   <nav>
     <button data-t="act" class="on">Акт</button>
+    <button data-t="exp">Расходы</button>
     <button data-t="staff">Сотрудники</button>
     <button data-t="arch">Архив</button>
   </nav>
@@ -280,6 +285,35 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
  </div>
 </section>
 
+<section class="tab" id="exp">
+ <div class="grid">
+  <div class="sec">
+    <h2>Отчёт о хозрасходах</h2>
+    <div class="fld" data-k="goal"><label for="goal">Цель</label><div class="inw m"><textarea id="goal" style="min-height:96px"></textarea></div><p class="hint">Например: приобретение вспомогательных материалов для WSBJ500 при ПНР (договор …)</p><p class="err">Укажите цель расходов</p></div>
+    <div class="fld"><label for="dept">Подразделение</label><div class="inw"><input id="dept" data-set="dept" autocomplete="off"></div></div>
+  </div>
+
+  <div class="sec full">
+    <h2>Чеки</h2>
+    <div id="checks"></div>
+    <button class="btn w" id="addCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить чек</button>
+    <p class="tot">Итого: <b id="expTot">0 руб. 00 коп.</b></p>
+    <input type="file" id="qrFile" accept="image/*" class="hide">
+  </div>
+
+  <div class="sec">
+    <h2>Подписи</h2>
+    <div class="fld" data-k="resp"><span class="lbl">Ответственный</span><div class="chips" id="resp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
+    <div class="fld"><label for="respPos">Должность ответственного</label><div class="inw"><input id="respPos" data-set="respPos" autocomplete="off"></div></div>
+    <div class="fld"><label for="apprPos">Утверждает: должность</label><div class="inw"><input id="apprPos" data-set="apprPos" autocomplete="off"></div></div>
+    <div class="fld"><label for="apprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="apprName" data-set="apprName" autocomplete="off"></div></div>
+    <div class="fld"><label for="dirPos">К оплате: должность</label><div class="inw"><input id="dirPos" data-set="dirPos" autocomplete="off"></div></div>
+    <div class="fld"><label for="dirName">К оплате: Ф. И. О.</label><div class="inw"><input id="dirName" data-set="dirName" autocomplete="off"></div></div>
+    <p class="hint">Подписи и подразделение запоминаются для следующих отчётов.</p>
+  </div>
+ </div>
+</section>
+
 <section class="tab" id="staff">
  <div class="grid">
   <div class="sec">
@@ -291,7 +325,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   <div class="sec">
     <h2>Список</h2>
     <div class="list" id="sList"></div>
-    <div class="fld" style="margin-top:26px"><label for="manufacturer">Производитель в шапке акта</label><div class="inw"><input id="manufacturer" autocomplete="off"></div></div>
+    <div class="fld" style="margin-top:26px"><label for="manufacturer">Производитель в шапке акта</label><div class="inw"><input id="manufacturer" data-set="manufacturer" autocomplete="off"></div></div>
   </div>
  </div>
 </section>
@@ -328,6 +362,16 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   </div>
 </div></div>
 
+<div class="bar hide" id="expbar"><div class="tb">
+  <div class="tbc"><small>Цель</small><b id="tbG"></b></div>
+  <div class="tbc sm"><small>Чеков</small><b id="tbN"></b></div>
+  <div class="tbc"><small>Итого</small><b id="tbT"></b></div>
+  <div class="tb-act">
+    <button class="btn" id="expNew" type="button" aria-label="Новый отчёт"><svg class="ic"><use href="#i-new"/></svg><span class="lb">Новый</span></button>
+    <button class="btn p" id="expPreview" type="button"><svg class="ic"><use href="#i-eye"/></svg>Просмотр отчёта</button>
+  </div>
+</div></div>
+
 <div id="pv">
   <div class="pbar"><div>
     <button class="btn" id="pvClose" type="button"><svg class="ic"><use href="#i-back"/></svg>Правка</button>
@@ -345,6 +389,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <script>window.DOCXPREV=window.docx;</script>
 <script src="lib/html2canvas.min.js"></script>
 <script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jsQR.js"></script>
 <script src="gen.js"></script>
 <script src="app.js"></script>
 </body>

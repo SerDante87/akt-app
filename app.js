@@ -1,6 +1,6 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
-const KEY = { staff: "akt.staff", hist: "akt.hist", set: "akt.set", draft: "akt.draft" };
+const KEY = { staff: "akt.staff", hist: "akt.hist", set: "akt.set", draft: "akt.draft", expDraft: "akt.expDraft" };
 const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { toast("Память браузера недоступна"); } };
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
@@ -10,8 +10,10 @@ const num = (s) => parseFloat(String(s).replace(",", "."));
 
 let staff = load(KEY.staff, []);
 let hist = load(KEY.hist, []);
-let settings = load(KEY.set, { manufacturer: "ООО «Вебер Комеханикс»" });
-let curId = null, engIdx = 0;
+const SET_DEF = { manufacturer: "ООО «Вебер Комеханикс»", dept: "Направление сервиса оборудования зубообработки",
+  respPos: "", apprPos: "Руководитель направления", apprName: "", dirPos: "Технический директор", dirName: "" };
+let settings = { ...SET_DEF, ...load(KEY.set, {}) };
+let curId = null, engIdx = 0, curExpId = null, respIdx = 0;
 
 function toast(t) {
   const e = $("toast"); e.textContent = t; e.style.display = "block";
@@ -23,6 +25,7 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.id === b.dataset.t));
   $("actbar").classList.toggle("hide", b.dataset.t !== "act");
+  $("expbar").classList.toggle("hide", b.dataset.t !== "exp");
   window.scrollTo(0, 0);
 });
 
@@ -72,11 +75,11 @@ function stepper(label, f, val, step, min, err) {
   const [m, p] = e.querySelectorAll("button"); m.onclick = () => bump(-1); p.onclick = () => bump(1);
   return e;
 }
-function item(children) {
+function item(children, after = () => { sync(); persist(); }) {
   const it = mk(`<div class="item"></div>`);
   children.forEach((c) => it.appendChild(c));
   const x = mk(`<button type="button" class="btn d del">${ic("trash")}Удалить</button>`);
-  x.onclick = () => { it.remove(); sync(); persist(); };
+  x.onclick = () => { it.remove(); after(); };
   it.appendChild(x); return it;
 }
 function addPart(p = {}) {
@@ -146,7 +149,9 @@ function sync() {
   refreshSteps();
 }
 // _pv: просмотр был открыт — мобильный браузер после скачивания файла перезагружает страницу
-function persist() { save(KEY.draft, { ...collect(), _id: curId, _pv: $("pv").classList.contains("on") }); }
+let pvKind = "act";
+const pvOpen = (k) => $("pv").classList.contains("on") && pvKind === k;
+function persist() { save(KEY.draft, { ...collect(), _id: curId, _pv: pvOpen("act") }); }
 addEventListener("pagehide", persist);
 document.addEventListener("visibilitychange", () => { if (document.hidden) persist(); });
 $("act").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); persist(); });
@@ -174,22 +179,25 @@ function validate(d) {
 }
 
 // ---------- сотрудники ----------
-function renderStaff() {
-  const box = $("engineer"); box.innerHTML = "";
-  if (!staff.length) box.innerHTML = '<span class="empty">Список пуст</span>';
+function staffChips(box, name, cur, pick) {
+  box.innerHTML = staff.length ? "" : '<span class="empty">Список пуст</span>';
   staff.forEach((s, i) => {
-    const c = mk(`<label class="chip"><input type="radio" name="eng" value="${i}"><span class="dot"></span><span><span class="n"></span><small></small></span></label>`);
+    const c = mk(`<label class="chip"><input type="radio" name="${name}" value="${i}"><span class="dot"></span><span><span class="n"></span><small></small></span></label>`);
     c.querySelector(".n").textContent = s.name; c.querySelector("small").textContent = s.pos;
-    const r = c.querySelector("input"); r.checked = i === engIdx;
-    r.onchange = () => { engIdx = i; persist(); };
+    const r = c.querySelector("input"); r.checked = i === cur;
+    r.onchange = () => pick(i);
     box.appendChild(c);
   });
+}
+function renderStaff() {
+  staffChips($("engineer"), "eng", engIdx, (i) => { engIdx = i; persist(); });
+  staffChips($("resp"), "resp", respIdx, (i) => { respIdx = i; persistExp(); });
   $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
   staff.forEach((s, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
     r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = s.pos;
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
-    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = 0; save(KEY.staff, staff); renderStaff(); persist(); } };
+    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = 0; save(KEY.staff, staff); renderStaff(); persist(); persistExp(); } };
     r.appendChild(x); $("sList").appendChild(r);
   });
 }
@@ -198,20 +206,28 @@ $("sAdd").onclick = () => {
   if (!name) return toast("Введите Ф. И. О.");
   staff.push({ name, pos }); save(KEY.staff, staff); $("sName").value = ""; renderStaff(); toast("Сотрудник добавлен");
 };
-$("manufacturer").value = settings.manufacturer;
-$("manufacturer").oninput = (e) => { settings.manufacturer = e.target.value; save(KEY.set, settings); };
+// поля с data-set хранятся в настройках и переживают «Новый»: производитель, подразделение, подписи отчёта
+const showSettings = () => document.querySelectorAll("[data-set]").forEach((i) => (i.value = settings[i.dataset.set] ?? ""));
+document.querySelectorAll("[data-set]").forEach((i) => (i.oninput = () => { settings[i.dataset.set] = i.value; save(KEY.set, settings); }));
+showSettings();
 
 // ---------- архив ----------
 function renderHist() {
   $("hList").innerHTML = hist.length ? "" : '<p class="empty">Пока пусто. Акт попадает сюда при сохранении DOCX или PDF.</p>';
+  const tab = (t) => document.querySelector(`nav button[data-t=${t}]`).click();
   hist.forEach((h, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
-    r.querySelector("b").textContent = h.customer || "(без заказчика)";
-    r.querySelector("small").textContent = [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ");
+    const ex = h.kind === "exp";
+    r.querySelector("b").textContent = ex ? "Расходы: " + (h.goal || "(без цели)") : h.customer || "(без заказчика)";
+    r.querySelector("small").textContent = ex ? [h.checks.map((c) => "ФД " + c.fd).join(", "), rub(checksTotal(h.checks))].join(" · ")
+      : [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ");
     const o = mk(`<button class="btn">Открыть</button>`);
-    o.onclick = () => { curId = h._id; fill(h); document.querySelector("nav button[data-t=act]").click(); };
+    o.onclick = () => { if (ex) { curExpId = h._id; fillExp(h); tab("exp"); } else { curId = h._id; fill(h); tab("act"); } };
     const c = mk(`<button class="btn">Копия</button>`);
-    c.onclick = () => { curId = null; fill({ ...h, _iso: todayISO() }); document.querySelector("nav button[data-t=act]").click(); persist(); };
+    c.onclick = () => {
+      if (ex) { curExpId = null; fillExp(h); tab("exp"); persistExp(); }
+      else { curId = null; fill({ ...h, _iso: todayISO() }); tab("act"); persist(); }
+    };
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
     x.onclick = () => { if (confirm("Удалить акт из архива?")) { hist.splice(i, 1); save(KEY.hist, hist); renderHist(); } };
     r.append(o, c, x); $("hList").appendChild(r);
@@ -222,7 +238,8 @@ function renderHist() {
   });
 }
 function archive(d) {
-  d._id = curId = curId || Date.now();
+  if (d.kind === "exp") d._id = curExpId = curExpId || Date.now();
+  else d._id = curId = curId || Date.now();
   hist = [d, ...hist.filter((h) => h._id !== d._id)].slice(0, 100);
   save(KEY.hist, hist); renderHist();
 }
@@ -232,9 +249,9 @@ $("impFile").onchange = async (e) => {
   try {
     const j = JSON.parse(await e.target.files[0].text());
     if (!confirm("Заменить текущие данные резервной копией?")) return;
-    staff = j.staff || []; hist = j.hist || []; settings = j.settings || settings;
+    staff = j.staff || []; hist = j.hist || []; settings = { ...SET_DEF, ...(j.settings || settings) };
     save(KEY.staff, staff); save(KEY.hist, hist); save(KEY.set, settings);
-    $("manufacturer").value = settings.manufacturer; engIdx = 0; renderStaff(); renderHist(); toast("Импортировано");
+    showSettings(); engIdx = respIdx = 0; renderStaff(); renderHist(); toast("Импортировано");
   } catch { toast("Не удалось прочитать файл"); }
   e.target.value = "";
 };
@@ -244,29 +261,31 @@ function dl(blob, name) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-const fname = (d) => ("Акт_" + [d.customer, d.machine, d.serial, d.dateText.replace(/[«»]/g, "").trim()].filter(Boolean).join("_")).replace(/[\\/:*?"<>|\s]+/g, "_") + ".docx";
+const fname = (d) => (d.kind === "exp" ? "Отчет_о_хозрасходах_" + [d.checks[0]?.date, checksTotal(d.checks).toFixed(2).replace(".", ",") + "_руб"].join("_")
+  : "Акт_" + [d.customer, d.machine, d.serial, d.dateText.replace(/[«»]/g, "").trim()].filter(Boolean).join("_")).replace(/[\\/:*?"<>|\s]+/g, "_") + ".docx";
 let lastBlob = null, lastData = null;
 
-async function openPreview() {
-  const d = collect(), bad = validate(d);
+async function openPreview(kind = "act") {
+  const ex = kind === "exp", d = ex ? collectExp() : collect(), bad = ex ? validateExp(d) : validate(d);
   if (bad.length) {
     toast("Заполните отмеченные поля");
-    revealEl(bad[0]);
+    if (!ex) revealEl(bad[0]);
     bad[0].scrollIntoView({ block: "center", behavior: "smooth" });
     return;
   }
   try {
-    lastData = d;
-    lastBlob = await DOCXLIB.Packer.toBlob(buildDoc(DOCXLIB, d));
+    lastData = d; pvKind = kind;
+    lastBlob = await DOCXLIB.Packer.toBlob(ex ? buildExp(DOCXLIB, d) : buildDoc(DOCXLIB, d));
     const box = $("pvpage"); box.innerHTML = ""; box.style.zoom = 1;
     await DOCXPREV.renderAsync(lastBlob, box, null, { inWrapper: false, breakPages: true });
-    $("pv").classList.add("on"); document.body.style.overflow = "hidden"; persist();
+    $("pv").classList.add("on"); document.body.style.overflow = "hidden"; persist(); persistExp();
     const sec = box.querySelector("section");
     if (sec) box.style.zoom = Math.min(1, (window.innerWidth - 12) / sec.offsetWidth);
-  } catch (e) { console.error(e); toast("Ошибка сборки акта"); }
+  } catch (e) { console.error(e); toast(ex ? "Ошибка сборки отчёта" : "Ошибка сборки акта"); }
 }
-$("preview").onclick = openPreview;
-$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; persist(); };
+$("preview").onclick = () => openPreview("act");
+$("expPreview").onclick = () => openPreview("exp");
+$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; persist(); persistExp(); };
 $("pvDocx").onclick = () => { dl(lastBlob, fname(lastData)); archive({ ...lastData }); toast("DOCX сохранён"); };
 // PDF собирается в приложении из отрисованных листов: системная печать в установленном PWA ненадёжна
 async function makePdf() {
@@ -337,8 +356,109 @@ $("stNext").onclick = () => showStep(step + 1);
 $("act").addEventListener("input", refreshSteps);
 narrow.addEventListener("change", refreshSteps);
 
+// ---------- отчёт о хозрасходах ----------
+function addCheck(c = {}) {
+  const r = mk(`<div class="irow"></div>`);
+  r.append(field("ФД №", "fd", c.fd || "", { err: "Укажите номер ФД" }), field("Дата чека", "date", c.date || todayISO(), { type: "date" }),
+    field("Сумма, руб.", "sum", c.sum || "", { err: "Укажите сумму" }));
+  r.querySelector("[data-f=fd]").inputMode = "numeric"; r.querySelector("[data-f=sum]").inputMode = "decimal";
+  const items = mk(`<div class="fld"><label>Позиции</label><div class="inw m"><textarea data-f="items" style="min-height:96px"></textarea></div>
+    <p class="hint">Одна строка — одна позиция. Цену можно дописать в конце: «Клей 20 г – 381 р.»</p></div>`);
+  items.querySelector("textarea").value = c.items || "";
+  const scan = mk(`<button type="button" class="btn w">${ic("cam")}Заполнить по фото чека</button>`);
+  const it = item([scan, r, items], () => { refreshExp(); persistExp(); });
+  scan.onclick = () => { scanFor = it; $("qrFile").click(); };
+  $("checks").appendChild(it); mics(it);
+}
+$("addCheck").onclick = () => { addCheck(); persistExp(); };
+
+function collectExp() {
+  const rows = rowsOf($("checks")), s = staff[respIdx] || {};
+  return {
+    kind: "exp", dept: settings.dept, goal: $("goal").value.trim(),
+    checks: rows.map((c) => ({ fd: c.fd, date: fmtShort(c.date), sum: num(c.sum) || 0, items: lines(c.items) })),
+    respName: s.name || "", respPos: settings.respPos.trim() || s.pos || "",
+    apprPos: settings.apprPos, apprName: settings.apprName, dirPos: settings.dirPos, dirName: settings.dirName,
+    _checks: rows, _resp: respIdx,
+  };
+}
+function fillExp(d) {
+  $("goal").value = d.goal || "";
+  $("checks").innerHTML = "";
+  (d._checks || []).forEach(addCheck);
+  if (!$("checks").children.length) addCheck();
+  respIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
+  renderStaff(); refreshExp();
+}
+function persistExp() { save(KEY.expDraft, { ...collectExp(), _id: curExpId, _pv: pvOpen("exp") }); }
+function refreshExp() {
+  const d = collectExp();
+  $("expTot").textContent = $("tbT").textContent = rub(checksTotal(d.checks));
+  $("tbG").textContent = d.goal || "—"; $("tbN").textContent = d.checks.length;
+}
+$("exp").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); refreshExp(); persistExp(); });
+$("exp").addEventListener("change", persistExp);
+function validateExp(d) {
+  document.querySelectorAll("#exp .bad").forEach((e) => e.classList.remove("bad"));
+  const bad = [];
+  const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
+  mark($("goal"), !d.goal);
+  [...$("checks").children].forEach((it) => {
+    const g = (f) => it.querySelector(`[data-f=${f}]`);
+    mark(g("fd"), !g("fd").value.trim());
+    mark(g("sum"), !(num(g("sum").value) > 0));
+  });
+  if (!staff.length) mark($("resp"), true);
+  return bad;
+}
+$("expNew").onclick = () => {
+  if (!confirm("Очистить форму для нового отчёта?")) return;
+  curExpId = null; fillExp({ _resp: respIdx }); persistExp(); window.scrollTo(0, 0);
+};
+
+// QR-код кассового чека: t=20250920T1234&s=15990.00&fn=…&i=19478&fp=…&n=1, где i — номер ФД
+function parseCheckQR(s) {
+  const p = new URLSearchParams(String(s).trim()), t = p.get("t") || "", i = p.get("i");
+  if (!i) return null;
+  return { fd: i, date: /^\d{8}/.test(t) ? `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}` : "", sum: (p.get("s") || "").replace(".", ",") };
+}
+console.assert(JSON.stringify(parseCheckQR("t=20250920T1234&s=15990.00&fn=7380440800&i=19478&fp=123&n=1")) === '{"fd":"19478","date":"2025-09-20","sum":"15990,00"}', "parseCheckQR");
+async function readQR(file) {
+  const img = await createImageBitmap(file);
+  if ("BarcodeDetector" in window) {
+    try { const r = await new BarcodeDetector({ formats: ["qr_code"] }).detect(img); if (r[0]) return r[0].rawValue; } catch {}
+  }
+  // на iPad BarcodeDetector нет — jsQR; код на чеке мелкий, поэтому пробуем несколько масштабов
+  for (const max of [1600, 1000, 2400]) {
+    const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0, c.width, c.height);
+    const q = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
+    if (q) return q.data;
+  }
+  return null;
+}
+let scanFor = null;
+$("qrFile").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f || !scanFor) return;
+  toast("Ищу QR-код…");
+  try {
+    const c = parseCheckQR(await readQR(f));
+    if (!c) return toast("QR-код чека не найден. Снимите код крупнее или введите номер вручную");
+    const g = (k) => scanFor.querySelector(`[data-f=${k}]`);
+    g("fd").value = c.fd; if (c.date) g("date").value = c.date; if (c.sum) g("sum").value = c.sum;
+    scanFor.querySelectorAll(".bad").forEach((x) => x.classList.remove("bad"));
+    refreshExp(); persistExp(); toast(`ФД № ${c.fd} заполнен`);
+  } catch (err) { console.error(err); toast("Не удалось прочитать фото"); }
+};
+
 // ---------- старт ----------
 renderHist();
 try { const dr = load(KEY.draft, null); if (dr) { curId = dr._id || null; fill(dr); if (dr._pv) openPreview(); } else fill({}); } catch { fill({}); }
+try {
+  const de = load(KEY.expDraft, null); curExpId = de?._id || null; fillExp(de || {});
+  if (de?._pv) { document.querySelector("nav button[data-t=exp]").click(); openPreview("exp"); }
+} catch { fillExp({}); }
 mics();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

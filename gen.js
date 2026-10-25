@@ -171,4 +171,80 @@ function buildDoc(docx, d) {
     sections: [{ properties, children: [title(false), ...mark(1), table, ...after] }, ...extra],
   });
 }
-if (typeof module !== "undefined") module.exports = buildDoc;
+const rub = (n) => { const k = Math.round((+n || 0) * 100); return `${Math.floor(k / 100)} руб. ${String(k % 100).padStart(2, "0")} коп.`; };
+const checksTotal = (checks) => checks.reduce((s, c) => s + (+c.sum || 0), 0);
+
+// Отчёт о хозяйственных расходах по образцу «Покупка вспомогательных материалов WR600 WSBJ500.doc»:
+// гриф «Утверждаю» справа (Tahoma), тело Times New Roman 12, подписи — таблицы без рамок.
+// e: { dept, goal, checks: [{ fd, date: "дд.мм.гггг", sum: число, items: [строки] }], respPos, respName, apprPos, apprName, dirPos, dirName }
+function buildExp(docx, e) {
+  const { Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign, TableLayoutType, HeightRule } = docx;
+  const TNR = "Times New Roman", TAH = "Tahoma";
+  const line = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+  const run = (t, o = {}) => new TextRun({ text: String(t ?? ""), size: 24, ...o });
+  const p = (children, o = {}) => new Paragraph({ spacing: { before: 0, after: 0 }, children, ...o });
+  const C = AlignmentType.CENTER;
+  const total = checksTotal(e.checks);
+
+  // гриф: левый отступ 324 pt как в образце; значение на линии, подпись в скобках под ней
+  const ind = { left: 6480 };
+  const g = (t, o = {}) => p([run(t, { font: TAH })], { indent: ind, alignment: C, ...o });
+  const onLine = (t) => g(t || " ", { border: { bottom: line } });
+  const capG = (t) => p([run(t, { font: TAH, size: 16 })], { indent: ind, alignment: C });
+  const stamp = [
+    g("“Утверждаю”"), onLine(e.apprPos), capG("(должность)"), onLine(e.apprName), capG("(Ф.И.О.)"),
+    p([run(" ")], { indent: ind, spacing: { before: 200 }, border: { bottom: line } }), capG("(подпись)"),
+    g("“____” _______________ 20__ г.", { spacing: { before: 120 } }),
+  ];
+
+  const body = (children, o = {}) => p(children, { spacing: { before: 0, after: 0, line: 300 }, ...o });
+  const labeled = (l, t) => body([run(l + " ", { bold: true, font: TNR }), run(t, { font: TNR })], { alignment: AlignmentType.JUSTIFIED, spacing: { before: 120 } });
+  const checks = e.checks.flatMap((c) => [
+    body([run(`Фискальный документ № ${c.fd} от ${c.date}, сумма ${rub(c.sum)}`, { font: TNR })], { indent: { left: 720 }, spacing: { before: 80 } }),
+    ...c.items.map((t) => body([run(t, { font: TNR })], { indent: { left: 1080 } })),
+  ]);
+
+  // подписи: [метка] [должность] [подпись] [Ф.И.О.], под линиями — подсказки мелким шрифтом
+  const NB = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const noB = { top: NB, bottom: NB, left: NB, right: NB };
+  const SW = [2900, 2900, 200, 1500, 200, 2788];
+  const sc = (i, children, b = noB, v = VerticalAlign.BOTTOM) => new TableCell({ width: { size: SW[i], type: WidthType.DXA }, borders: b, verticalAlign: v, margins: { left: 40, right: 40, top: 0, bottom: 0 }, children });
+  const st = (t, o = {}) => p([run(t, { font: TNR, ...o })], { alignment: C });
+  const sig = (label, pos, name) => new Table({
+    columnWidths: SW, layout: TableLayoutType.FIXED, width: { size: SW.reduce((s, x) => s + x, 0), type: WidthType.DXA },
+    borders: { top: NB, bottom: NB, left: NB, right: NB, insideHorizontal: NB, insideVertical: NB },
+    rows: [
+      new TableRow({ cantSplit: true, height: { value: 560, rule: HeightRule.ATLEAST }, children: [
+        sc(0, [p([run(label, { font: TNR })])]), sc(1, [st(pos)], { ...noB, bottom: line }), sc(2, [p([])]),
+        sc(3, [p([])], { ...noB, bottom: line }), sc(4, [p([])]), sc(5, [st(name)], { ...noB, bottom: line })] }),
+      new TableRow({ children: [sc(0, [p([])]), sc(1, [st("(должность)", { size: 16 })], noB, VerticalAlign.TOP), sc(2, [p([])]),
+        sc(3, [st("(подпись)", { size: 16 })], noB, VerticalAlign.TOP), sc(4, [p([])]), sc(5, [st("(Ф.И.О.)", { size: 16 })], noB, VerticalAlign.TOP)] }),
+    ],
+  });
+  const dateLine = "“__” _________ 20__ г.";
+
+  return new Document({
+    creator: "GearProduction",
+    title: "Отчет о хозяйственных расходах",
+    styles: { default: { document: { run: { font: TNR, size: 24 } } } },
+    sections: [{
+      // поля образца: левое 2 см, правое и верхнее 0,5 см
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 284, bottom: 700, left: 1134, right: 284 } } },
+      children: [
+        ...stamp,
+        p([run("Отчет о хозяйственных расходах", { bold: true, font: TNR })], { alignment: C, spacing: { before: 480, after: 240 } }),
+        labeled("Подразделение:", e.dept),
+        labeled("Цель:", e.goal),
+        body([run("Расходы:", { font: TNR })], { spacing: { before: 240 } }),
+        ...checks,
+        body([run(`Итого: ${rub(total)}`, { font: TNR, bold: true })], { spacing: { before: 240, after: 240 } }),
+        sig("Ответственный:", e.respPos, e.respName),
+        body([run(dateLine, { font: TNR })], { spacing: { before: 160, after: 360 } }),
+        body([run(`Расходы подтверждаю, к оплате ${rub(total)}`, { font: TNR })], { spacing: { after: 160 } }),
+        sig(dateLine, e.dirPos, e.dirName),
+        p([run("", { size: 2 })], { spacing: { before: 0, after: 0, line: 20, lineRule: "exact" } }),
+      ],
+    }],
+  });
+}
+if (typeof module !== "undefined") module.exports = { buildDoc, buildExp, rub };
