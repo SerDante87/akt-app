@@ -462,16 +462,16 @@ $("hAddCheck").onclick = () => { addHozCheck(); persistHoz(); };
 function collectHoz() {
   const rows = rowsOf($("hChecks")), s = staff[hrespIdx] || {}, iso = $("hDate").value, [y, m, dd] = iso ? iso.split("-") : [];
   return {
-    kind: "hoz", dept: settings.dept, project: $("hProject").value.trim(), goal: lines($("hGoal").value),
+    kind: "hoz", dept: settings.dept, project: $("hProject").value.trim(), goal: [...lines($("hGoal").value), ...lines($("hEng").value).map((n) => "- " + n.replace(/^[-–—]\s*/, ""))],
     checks: rows.map((c) => ({ fd: c.fd, date: fmtShort(c.date), sum: num(c.sum) || 0 })),
     apprPos: settings.hozApprPos, apprName: settings.hozApprName,
     respName: s.name || "", respPos: settings.respPos.trim() || s.pos || "",
     dateText: iso ? `« ${+dd} » ${MONTHS[m - 1]} ${y} г.` : "",
-    _checks: rows, _resp: hrespIdx, _iso: iso, _txt: { goal: $("hGoal").value, project: $("hProject").value },
+    _checks: rows, _resp: hrespIdx, _iso: iso, _txt: { goal: $("hGoal").value, eng: $("hEng").value, project: $("hProject").value },
   };
 }
 function fillHoz(d) {
-  $("hGoal").value = d._txt?.goal ?? ""; $("hProject").value = d._txt?.project ?? "";
+  $("hGoal").value = d._txt?.goal ?? ""; $("hEng").value = d._txt?.eng ?? ""; $("hProject").value = d._txt?.project ?? "";
   $("hDate").value = d._iso || todayISO();
   $("hChecks").innerHTML = "";
   (d._checks || []).forEach(addHozCheck);
@@ -492,7 +492,7 @@ function validateHoz(d) {
   document.querySelectorAll("#hoz .bad").forEach((e) => e.classList.remove("bad"));
   const bad = [];
   const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
-  mark($("hGoal"), !d.goal.length);
+  mark($("hGoal"), !lines($("hGoal").value).length);
   [...$("hChecks").children].forEach((it) => {
     const g = (f) => it.querySelector(`[data-f=${f}]`);
     mark(g("fd"), !g("fd").value.trim());
