@@ -71,7 +71,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 /* телефон и узкий планшет: один раздел на лист */
 @media (max-width:819px){
   #act .grid{max-width:640px;margin:0 auto;gap:0}
-  #act .sec:not(.cur){display:none}
+  body.steps #act .sec:not(.cur){display:none}
   #act .sec.cur{animation:sheet .32s var(--ease)}
 }
 @keyframes sheet{from{opacity:.35;transform:translateX(18px)}}

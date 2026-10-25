@@ -312,6 +312,7 @@ function showStep(i) { step = i; refreshSteps(); window.scrollTo(0, 0); }
 function revealEl(el) { const j = secs().findIndex((s) => s.contains(el)); if (j >= 0 && narrow.matches) showStep(j); }
 function refreshSteps() {
   const s = secs();
+  document.body.classList.add("steps"); // без этого скрипта разделы остаются видимыми
   step = Math.max(0, Math.min(step, s.length - 1));
   s.forEach((x, j) => x.classList.toggle("cur", j === step));
   const title = (x) => x.querySelector("h2").textContent;
