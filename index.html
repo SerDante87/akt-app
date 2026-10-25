@@ -46,6 +46,7 @@ nav{display:flex;gap:4px;flex:0 1 auto}
 nav button{min-height:48px;padding:0 20px;background:none;border:0;border-bottom:4px solid transparent;font-weight:600;color:var(--mut);cursor:pointer}
 nav button.on{color:var(--ink);border-color:var(--ink)}
 @media (max-width:819px){nav{flex:1 1 100%}nav button{flex:1;padding:0}}
+@media (max-width:420px){nav button{font-size:15px}} /* четыре вкладки в ширину телефона без слипания */
 
 main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(var(--fL) + 16px)}
 .tab{display:none}.tab.on{display:block}
@@ -127,7 +128,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .step input{border:0;background:none;text-align:center;font-size:19px;font-weight:650;min-width:0;width:100%;padding:0;min-height:var(--tap);font-variant-numeric:tabular-nums}
 .step input:focus-visible{outline-offset:-3px}
 .item .del{margin-top:2px}
-.item>.btn.w{margin-bottom:14px}
+.item>.row2{margin-bottom:14px}.item>.row2 .btn{padding:0 8px;gap:8px;white-space:nowrap}
 #exp .grid{grid-auto-flow:dense} /* «Подписи» встают рядом с «Отчётом», на телефоне остаются после чеков */
 .tot{margin:16px 2px 0;font-size:19px}
 
@@ -299,6 +300,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <button class="btn w" id="addCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить чек</button>
     <p class="tot">Итого: <b id="expTot">0 руб. 00 коп.</b></p>
     <input type="file" id="qrFile" accept="image/*" class="hide">
+    <input type="file" id="qrCam" accept="image/*" capture="environment" class="hide">
   </div>
 
   <div class="sec">
@@ -338,7 +340,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   </div>
   <div class="sec">
     <h2>Резервная копия</h2>
-    <div class="row2"><button class="btn" id="exp" type="button">Экспорт</button><button class="btn" id="imp" type="button">Импорт</button></div>
+    <div class="row2"><button class="btn" id="backupExp" type="button">Экспорт</button><button class="btn" id="imp" type="button">Импорт</button></div>
     <input type="file" id="impFile" accept=".json" class="hide">
     <p class="hint">Данные хранятся только в браузере этого устройства. Экспорт переносит сотрудников и акты на другое устройство.</p>
   </div>

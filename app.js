@@ -243,7 +243,7 @@ function archive(d) {
   hist = [d, ...hist.filter((h) => h._id !== d._id)].slice(0, 100);
   save(KEY.hist, hist); renderHist();
 }
-$("exp").onclick = () => dl(new Blob([JSON.stringify({ staff, hist, settings })], { type: "application/json" }), `akt-backup-${todayISO()}.json`);
+$("backupExp").onclick = () => dl(new Blob([JSON.stringify({ staff, hist, settings })], { type: "application/json" }), `akt-backup-${todayISO()}.json`);
 $("imp").onclick = () => $("impFile").click();
 $("impFile").onchange = async (e) => {
   try {
@@ -365,9 +365,12 @@ function addCheck(c = {}) {
   const items = mk(`<div class="fld"><label>Позиции</label><div class="inw m"><textarea data-f="items" style="min-height:96px"></textarea></div>
     <p class="hint">Одна строка — одна позиция. Цену можно дописать в конце: «Клей 20 г – 381 р.»</p></div>`);
   items.querySelector("textarea").value = c.items || "";
-  const scan = mk(`<button type="button" class="btn w">${ic("cam")}Заполнить по фото чека</button>`);
+  // на Android поле без capture открывает только галерею — камера отдельной кнопкой
+  const scan = mk(`<div class="row2"><button type="button" class="btn">${ic("cam")}Снять чек</button><button type="button" class="btn">Из галереи</button></div>`);
   const it = item([scan, r, items], () => { refreshExp(); persistExp(); });
-  scan.onclick = () => { scanFor = it; $("qrFile").click(); };
+  const [cam, gal] = scan.children;
+  cam.onclick = () => { scanFor = it; $("qrCam").click(); };
+  gal.onclick = () => { scanFor = it; $("qrFile").click(); };
   $("checks").appendChild(it); mics(it);
 }
 $("addCheck").onclick = () => { addCheck(); persistExp(); };
@@ -439,7 +442,7 @@ async function readQR(file) {
   return null;
 }
 let scanFor = null;
-$("qrFile").onchange = async (e) => {
+$("qrFile").onchange = $("qrCam").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = "";
   if (!f || !scanFor) return;
   toast("Ищу QR-код…");
