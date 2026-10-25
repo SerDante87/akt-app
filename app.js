@@ -1,6 +1,6 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
-const KEY = { staff: "akt.staff", hist: "akt.hist", set: "akt.set", draft: "akt.draft", expDraft: "akt.expDraft" };
+const KEY = { staff: "akt.staff", hist: "akt.hist", set: "akt.set", draft: "akt.draft", expDraft: "akt.expDraft", hozDraft: "akt.hozDraft" };
 const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { toast("Память браузера недоступна"); } };
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
@@ -11,9 +11,10 @@ const num = (s) => parseFloat(String(s).replace(",", "."));
 let staff = load(KEY.staff, []);
 let hist = load(KEY.hist, []);
 const SET_DEF = { manufacturer: "ООО «Вебер Комеханикс»", dept: "Направление сервиса оборудования зубообработки",
-  respPos: "", apprPos: "Руководитель направления", apprName: "", dirPos: "Технический директор", dirName: "" };
+  respPos: "", apprPos: "Руководитель направления", apprName: "", dirPos: "Технический директор", dirName: "",
+  hozApprPos: "Руководитель службы внутреннего контроля и аудита", hozApprName: "" };
 let settings = { ...SET_DEF, ...load(KEY.set, {}) };
-let curId = null, engIdx = 0, curExpId = null, respIdx = 0;
+let curId = null, engIdx = 0, curExpId = null, respIdx = 0, curHozId = null, hrespIdx = 0;
 
 function toast(t) {
   const e = $("toast"); e.textContent = t; e.style.display = "block";
@@ -21,16 +22,18 @@ function toast(t) {
 }
 
 // ---------- вкладки ----------
-// экраны: home — выбор документа, act / exp — документы, staff, arch. Вторая кнопка меню ведёт в открытый документ
-const DOCS = { act: { tab: "Акт", title: "Акт о проведении сервисных работ" }, exp: { tab: "Материалы", title: "Отчёт о покупке материалов" } };
-const TITLES = { home: "Документы", staff: "Сотрудники", arch: "Архив", act: DOCS.act.title, exp: DOCS.exp.title };
+// экраны: home — выбор документа, act / exp / hoz — документы, staff, arch. Вторая кнопка меню ведёт в открытый документ
+const DOCS = { act: { tab: "Акт", title: "Акт о проведении сервисных работ" }, exp: { tab: "Материалы", title: "Отчёт о покупке материалов" },
+  hoz: { tab: "Хозрасходы", title: "Отчёт о хозрасходах" } };
+const TITLES = { home: "Документы", staff: "Сотрудники", arch: "Архив", act: DOCS.act.title, exp: DOCS.exp.title, hoz: DOCS.hoz.title };
 let curDoc = null;
 function go(t) {
   if (DOCS[t]) curDoc = t;
   if (t === "home") {
-    const a = load(KEY.draft, null), e = load(KEY.expDraft, null);
+    const a = load(KEY.draft, null), e = load(KEY.expDraft, null), h = load(KEY.hozDraft, null);
     $("hAct").textContent = a && (a.customer || a.machine) ? "Черновик: " + (a.customer || a.machine) : "Новый акт";
     $("hExp").textContent = e && e.goal ? "Черновик: " + e.goal : "Чеки, номера ФД по фото, итог";
+    $("hHoz").textContent = h && h.goal?.length ? "Черновик: " + h.goal[0] : "Таблица ФД, суммы, отметка руководителя";
   }
   const dn = $("docBtn");
   dn.classList.toggle("hide", !curDoc);
@@ -39,6 +42,7 @@ function go(t) {
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.id === t));
   $("actbar").classList.toggle("hide", t !== "act");
   $("expbar").classList.toggle("hide", t !== "exp");
+  $("hozbar").classList.toggle("hide", t !== "hoz");
   document.body.classList.toggle("home", t === "home");
   $("ttl").textContent = TITLES[t];
   window.scrollTo(0, 0);
@@ -209,12 +213,13 @@ function staffChips(box, name, cur, pick) {
 function renderStaff() {
   staffChips($("engineer"), "eng", engIdx, (i) => { engIdx = i; persist(); });
   staffChips($("resp"), "resp", respIdx, (i) => { respIdx = i; persistExp(); });
+  staffChips($("hResp"), "hresp", hrespIdx, (i) => { hrespIdx = i; persistHoz(); });
   $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
   staff.forEach((s, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
     r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = s.pos;
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
-    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = 0; save(KEY.staff, staff); renderStaff(); persist(); persistExp(); } };
+    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = 0; save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
     r.appendChild(x); $("sList").appendChild(r);
   });
 }
@@ -225,7 +230,11 @@ $("sAdd").onclick = () => {
 };
 // поля с data-set хранятся в настройках и переживают «Новый»: производитель, подразделение, подписи отчёта
 const showSettings = () => document.querySelectorAll("[data-set]").forEach((i) => (i.value = settings[i.dataset.set] ?? ""));
-document.querySelectorAll("[data-set]").forEach((i) => (i.oninput = () => { settings[i.dataset.set] = i.value; save(KEY.set, settings); }));
+// одно и то же значение может стоять в двух документах (подразделение, должность ответственного) — держим поля в согласии
+document.querySelectorAll("[data-set]").forEach((i) => (i.oninput = () => {
+  settings[i.dataset.set] = i.value; save(KEY.set, settings);
+  document.querySelectorAll(`[data-set=${i.dataset.set}]`).forEach((o) => { if (o !== i) o.value = i.value; });
+}));
 showSettings();
 
 // ---------- архив ----------
@@ -234,16 +243,22 @@ function renderHist() {
   const tab = go;
   hist.forEach((h, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
-    const ex = h.kind === "exp";
-    r.querySelector("b").textContent = ex ? "Материалы: " +(h.goal || "(без цели)") : h.customer || "(без заказчика)";
-    r.querySelector("small").textContent = ex ? [h.checks.map((c) => "ФД " + c.fd).join(", "), rub(checksTotal(h.checks))].join(" · ")
-      : [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ");
+    const k = h.kind || "act";
+    r.querySelector("b").textContent = k === "exp" ? "Материалы: " + (h.goal || "(без цели)") : k === "hoz" ? "Хозрасходы: " + (h.goal[0] || "(без цели)")
+      : h.customer || "(без заказчика)";
+    r.querySelector("small").textContent = k === "act" ? [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ")
+      : [h.checks.map((c) => "ФД " + c.fd).join(", "), rub(checksTotal(h.checks))].join(" · ");
     const o = mk(`<button class="btn">Открыть</button>`);
-    o.onclick = () => { if (ex) { curExpId = h._id; fillExp(h); tab("exp"); } else { curId = h._id; fill(h); tab("act"); } };
+    o.onclick = () => {
+      if (k === "exp") { curExpId = h._id; fillExp(h); } else if (k === "hoz") { curHozId = h._id; fillHoz(h); } else { curId = h._id; fill(h); }
+      tab(k);
+    };
     const c = mk(`<button class="btn">Копия</button>`);
     c.onclick = () => {
-      if (ex) { curExpId = null; fillExp(h); tab("exp"); persistExp(); }
-      else { curId = null; fill({ ...h, _iso: todayISO() }); tab("act"); persist(); }
+      if (k === "exp") { curExpId = null; fillExp(h); persistExp(); }
+      else if (k === "hoz") { curHozId = null; fillHoz({ ...h, _iso: todayISO() }); persistHoz(); }
+      else { curId = null; fill({ ...h, _iso: todayISO() }); persist(); }
+      tab(k);
     };
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
     x.onclick = () => { if (confirm("Удалить акт из архива?")) { hist.splice(i, 1); save(KEY.hist, hist); renderHist(); } };
@@ -256,6 +271,7 @@ function renderHist() {
 }
 function archive(d) {
   if (d.kind === "exp") d._id = curExpId = curExpId || Date.now();
+  else if (d.kind === "hoz") d._id = curHozId = curHozId || Date.now();
   else d._id = curId = curId || Date.now();
   hist = [d, ...hist.filter((h) => h._id !== d._id)].slice(0, 100);
   save(KEY.hist, hist); renderHist();
@@ -268,7 +284,7 @@ $("impFile").onchange = async (e) => {
     if (!confirm("Заменить текущие данные резервной копией?")) return;
     staff = j.staff || []; hist = j.hist || []; settings = { ...SET_DEF, ...(j.settings || settings) };
     save(KEY.staff, staff); save(KEY.hist, hist); save(KEY.set, settings);
-    showSettings(); engIdx = respIdx = 0; renderStaff(); renderHist(); toast("Импортировано");
+    showSettings(); engIdx = respIdx = hrespIdx = 0; renderStaff(); renderHist(); toast("Импортировано");
   } catch { toast("Не удалось прочитать файл"); }
   e.target.value = "";
 };
@@ -278,31 +294,34 @@ function dl(blob, name) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-const fname = (d) => (d.kind === "exp" ? "Отчет_о_хозрасходах_" + [d.checks[0]?.date, checksTotal(d.checks).toFixed(2).replace(".", ",") + "_руб"].join("_")
+const sumName = (d) => [d.checks[0]?.date, checksTotal(d.checks).toFixed(2).replace(".", ",") + "_руб"].join("_");
+const fname = (d) => (d.kind === "exp" ? "Отчет_о_покупке_" + sumName(d) : d.kind === "hoz" ? "Отчет_о_хозрасходах_" + sumName(d)
   : "Акт_" + [d.customer, d.machine, d.serial, d.dateText.replace(/[«»]/g, "").trim()].filter(Boolean).join("_")).replace(/[\\/:*?"<>|\s]+/g, "_") + ".docx";
 let lastBlob = null, lastData = null;
 
 async function openPreview(kind = "act") {
-  const ex = kind === "exp", d = ex ? collectExp() : collect(), bad = ex ? validateExp(d) : validate(d);
+  const [get, check, build] = { act: [collect, validate, buildDoc], exp: [collectExp, validateExp, buildExp], hoz: [collectHoz, validateHoz, buildHoz] }[kind];
+  const d = get(), bad = check(d);
   if (bad.length) {
     toast("Заполните отмеченные поля");
-    if (!ex) revealEl(bad[0]);
+    if (kind === "act") revealEl(bad[0]);
     bad[0].scrollIntoView({ block: "center", behavior: "smooth" });
     return;
   }
   try {
     lastData = d; pvKind = kind;
-    lastBlob = await DOCXLIB.Packer.toBlob(ex ? buildExp(DOCXLIB, d) : buildDoc(DOCXLIB, d));
+    lastBlob = await DOCXLIB.Packer.toBlob(build(DOCXLIB, d));
     const box = $("pvpage"); box.innerHTML = ""; box.style.zoom = 1;
     await DOCXPREV.renderAsync(lastBlob, box, null, { inWrapper: false, breakPages: true });
-    $("pv").classList.add("on"); document.body.style.overflow = "hidden"; persist(); persistExp();
+    $("pv").classList.add("on"); document.body.style.overflow = "hidden"; persistAll();
     const sec = box.querySelector("section");
     if (sec) box.style.zoom = Math.min(1, (window.innerWidth - 12) / sec.offsetWidth);
-  } catch (e) { console.error(e); toast(ex ? "Ошибка сборки отчёта" : "Ошибка сборки акта"); }
+  } catch (e) { console.error(e); toast("Ошибка сборки документа"); }
 }
 $("preview").onclick = () => openPreview("act");
 $("expPreview").onclick = () => openPreview("exp");
-$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; persist(); persistExp(); };
+$("hozPreview").onclick = () => openPreview("hoz");
+$("pvClose").onclick = () => { $("pv").classList.remove("on"); document.body.style.overflow = ""; persistAll(); };
 $("pvDocx").onclick = () => { dl(lastBlob, fname(lastData)); archive({ ...lastData }); toast("DOCX сохранён"); };
 // PDF собирается в приложении из отрисованных листов: системная печать в установленном PWA ненадёжна
 async function makePdf() {
@@ -374,7 +393,8 @@ $("act").addEventListener("input", refreshSteps);
 narrow.addEventListener("change", refreshSteps);
 
 // ---------- отчёт о хозрасходах ----------
-function addCheck(c = {}) {
+// чек: ФД, дата, сумма и фото с QR-кодом; в материалах ещё позиции (items), в хозрасходах — нет
+function addCheck(c = {}, box = $("checks"), withItems = true) {
   const r = mk(`<div class="irow"></div>`);
   r.append(field("ФД №", "fd", c.fd || "", { err: "Укажите номер ФД" }), field("Дата чека", "date", c.date || todayISO(), { type: "date" }),
     field("Сумма, руб.", "sum", c.sum || "", { err: "Укажите сумму" }));
@@ -384,11 +404,11 @@ function addCheck(c = {}) {
   items.querySelector("textarea").value = c.items || "";
   // на Android поле без capture открывает только галерею — камера отдельной кнопкой
   const scan = mk(`<div class="row2"><button type="button" class="btn">${ic("cam")}Снять чек</button><button type="button" class="btn">Из галереи</button></div>`);
-  const it = item([scan, r, items], () => { refreshExp(); persistExp(); });
+  const it = item(withItems ? [scan, r, items] : [scan, r], () => box.dispatchEvent(new Event("input", { bubbles: true })));
   const [cam, gal] = scan.children;
   cam.onclick = () => { scanFor = it; $("qrCam").click(); };
   gal.onclick = () => { scanFor = it; $("qrFile").click(); };
-  $("checks").appendChild(it); mics(it);
+  box.appendChild(it); mics(it);
 }
 $("addCheck").onclick = () => { addCheck(); persistExp(); };
 
@@ -436,6 +456,56 @@ $("expNew").onclick = () => {
   curExpId = null; fillExp({ _resp: respIdx }); persistExp(); window.scrollTo(0, 0);
 };
 
+// ---------- отчёт о хозрасходах (АО): таблица ФД без позиций ----------
+const addHozCheck = (c = {}) => addCheck(c, $("hChecks"), false);
+$("hAddCheck").onclick = () => { addHozCheck(); persistHoz(); };
+function collectHoz() {
+  const rows = rowsOf($("hChecks")), s = staff[hrespIdx] || {}, iso = $("hDate").value, [y, m, dd] = iso ? iso.split("-") : [];
+  return {
+    kind: "hoz", dept: settings.dept, project: $("hProject").value.trim(), goal: lines($("hGoal").value),
+    checks: rows.map((c) => ({ fd: c.fd, date: fmtShort(c.date), sum: num(c.sum) || 0 })),
+    apprPos: settings.hozApprPos, apprName: settings.hozApprName,
+    respName: s.name || "", respPos: settings.respPos.trim() || s.pos || "",
+    dateText: iso ? `« ${+dd} » ${MONTHS[m - 1]} ${y} г.` : "",
+    _checks: rows, _resp: hrespIdx, _iso: iso, _txt: { goal: $("hGoal").value, project: $("hProject").value },
+  };
+}
+function fillHoz(d) {
+  $("hGoal").value = d._txt?.goal ?? ""; $("hProject").value = d._txt?.project ?? "";
+  $("hDate").value = d._iso || todayISO();
+  $("hChecks").innerHTML = "";
+  (d._checks || []).forEach(addHozCheck);
+  if (!$("hChecks").children.length) addHozCheck();
+  hrespIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
+  renderStaff(); refreshHoz();
+}
+function persistHoz() { save(KEY.hozDraft, { ...collectHoz(), _id: curHozId, _pv: pvOpen("hoz") }); }
+function persistAll() { persist(); persistExp(); persistHoz(); }
+function refreshHoz() {
+  const d = collectHoz();
+  $("hTot").textContent = $("tbHT").textContent = rub(checksTotal(d.checks));
+  $("tbHG").textContent = d.goal[0] || "—"; $("tbHN").textContent = d.checks.length;
+}
+$("hoz").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); refreshHoz(); persistHoz(); });
+$("hoz").addEventListener("change", persistHoz);
+function validateHoz(d) {
+  document.querySelectorAll("#hoz .bad").forEach((e) => e.classList.remove("bad"));
+  const bad = [];
+  const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
+  mark($("hGoal"), !d.goal.length);
+  [...$("hChecks").children].forEach((it) => {
+    const g = (f) => it.querySelector(`[data-f=${f}]`);
+    mark(g("fd"), !g("fd").value.trim());
+    mark(g("sum"), !(num(g("sum").value) > 0));
+  });
+  if (!staff.length) mark($("hResp"), true);
+  return bad;
+}
+$("hozNew").onclick = () => {
+  if (!confirm("Очистить форму для нового отчёта?")) return;
+  curHozId = null; fillHoz({ _resp: hrespIdx }); persistHoz(); window.scrollTo(0, 0);
+};
+
 // QR-код кассового чека: t=20250920T1234&s=15990.00&fn=…&i=19478&fp=…&n=1, где i — номер ФД
 function parseCheckQR(s) {
   const p = new URLSearchParams(String(s).trim()), t = p.get("t") || "", i = p.get("i");
@@ -469,7 +539,8 @@ $("qrFile").onchange = $("qrCam").onchange = async (e) => {
     const g = (k) => scanFor.querySelector(`[data-f=${k}]`);
     g("fd").value = c.fd; if (c.date) g("date").value = c.date; if (c.sum) g("sum").value = c.sum;
     scanFor.querySelectorAll(".bad").forEach((x) => x.classList.remove("bad"));
-    refreshExp(); persistExp(); toast(`ФД № ${c.fd} заполнен`);
+    g("fd").dispatchEvent(new Event("input", { bubbles: true })); // форма сама пересчитает итог и сохранит черновик
+    toast(`ФД № ${c.fd} заполнен`);
   } catch (err) { console.error(err); toast("Не удалось прочитать фото"); }
 };
 
@@ -480,6 +551,10 @@ try {
   const de = load(KEY.expDraft, null); curExpId = de?._id || null; fillExp(de || {});
   if (de?._pv) { go("exp"); openPreview("exp"); }
 } catch { fillExp({}); }
+try {
+  const dh = load(KEY.hozDraft, null); curHozId = dh?._id || null; fillHoz(dh || {});
+  if (dh?._pv) { go("hoz"); openPreview("hoz"); }
+} catch { fillHoz({}); }
 go(curDoc || "home"); // curDoc задан, только если восстановлен открытый просмотр
 mics();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

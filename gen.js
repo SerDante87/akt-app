@@ -174,6 +174,20 @@ function buildDoc(docx, d) {
 const rub = (n) => { const k = Math.round((+n || 0) * 100); return `${Math.floor(k / 100)} руб. ${String(k % 100).padStart(2, "0")} коп.`; };
 const checksTotal = (checks) => checks.reduce((s, c) => s + (+c.sum || 0), 0);
 
+// Гриф «Утверждаю» справа (Tahoma 12, левый отступ 324 pt как в образцах): значение на линии, подпись в скобках под ней
+function stampParas(docx, pos, name) {
+  const { Paragraph, TextRun, BorderStyle, AlignmentType } = docx;
+  const line = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+  const ind = { left: 6480 };
+  const run = (t, o = {}) => new TextRun({ text: t, font: "Tahoma", size: 24, ...o });
+  const p = (t, o = {}, r = {}) => new Paragraph({ spacing: { before: 0, after: 0 }, indent: ind, alignment: AlignmentType.CENTER, children: [run(t, r)], ...o });
+  const onLine = (t) => p(t || " ", { border: { bottom: line } });
+  const cap = (t) => p(t, {}, { size: 16 });
+  return [p("“Утверждаю”"), onLine(pos), cap("(должность)"), onLine(name), cap("(Ф.И.О.)"),
+    p(" ", { spacing: { before: 200 }, border: { bottom: line } }), cap("(подпись)"),
+    p("“____” _______________ 20__ г.", { spacing: { before: 120 } })];
+}
+
 // Отчёт о хозяйственных расходах по образцу «Покупка вспомогательных материалов WR600 WSBJ500.doc»:
 // гриф «Утверждаю» справа (Tahoma), тело Times New Roman 12, подписи — таблицы без рамок.
 // e: { dept, goal, checks: [{ fd, date: "дд.мм.гггг", sum: число, items: [строки] }], respPos, respName, apprPos, apprName, dirPos, dirName }
@@ -186,16 +200,7 @@ function buildExp(docx, e) {
   const C = AlignmentType.CENTER;
   const total = checksTotal(e.checks);
 
-  // гриф: левый отступ 324 pt как в образце; значение на линии, подпись в скобках под ней
-  const ind = { left: 6480 };
-  const g = (t, o = {}) => p([run(t, { font: TAH })], { indent: ind, alignment: C, ...o });
-  const onLine = (t) => g(t || " ", { border: { bottom: line } });
-  const capG = (t) => p([run(t, { font: TAH, size: 16 })], { indent: ind, alignment: C });
-  const stamp = [
-    g("“Утверждаю”"), onLine(e.apprPos), capG("(должность)"), onLine(e.apprName), capG("(Ф.И.О.)"),
-    p([run(" ")], { indent: ind, spacing: { before: 200 }, border: { bottom: line } }), capG("(подпись)"),
-    g("“____” _______________ 20__ г.", { spacing: { before: 120 } }),
-  ];
+  const stamp = stampParas(docx, e.apprPos, e.apprName);
 
   const body = (children, o = {}) => p(children, { spacing: { before: 0, after: 0, line: 300 }, ...o });
   const labeled = (l, t) => body([run(l + " ", { bold: true, font: TNR }), run(t, { font: TNR })], { alignment: AlignmentType.JUSTIFIED, spacing: { before: 120 } });
@@ -247,4 +252,79 @@ function buildExp(docx, e) {
     }],
   });
 }
-if (typeof module !== "undefined") module.exports = { buildDoc, buildExp, rub };
+// Отчёт о хозрасходах (бланк для АО: «Бланк_АО_по_хозяйственным_расходам.doc», пример — обеды сервис-инженеров):
+// Tahoma 12, поля по 36 pt, таблица ФД без позиций, отметка руководителя, подтверждение к оплате.
+// e: { dept, project, goal: [строки], checks: [{ fd, date, sum }], apprPos, apprName, respPos, respName, dateText }
+function buildHoz(docx, e) {
+  const { Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign, TableLayoutType, HeightRule } = docx;
+  const line = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+  const NB = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const noB = { top: NB, bottom: NB, left: NB, right: NB };
+  const run = (t, o = {}) => new TextRun({ text: String(t ?? ""), font: "Tahoma", size: 24, ...o });
+  const p = (children, o = {}) => new Paragraph({ spacing: { before: 0, after: 0 }, children, ...o });
+  const J = AlignmentType.JUSTIFIED, C = AlignmentType.CENTER;
+  const u = { underline: {} };
+  const total = checksTotal(e.checks);
+  const field = (label, value) => p([run(label + " "), run(value || " ", u)], { alignment: J, spacing: { before: 120 } });
+  const goal = e.goal.length ? e.goal : [""];
+
+  const TW = [520, 5100, 2070, 1400, 1376]; // № · ФД № · Дата · Рублей · Копеек, в сумме ширина текста A4 с полями 36 pt
+  const tcell = (i, t) => new TableCell({
+    width: { size: TW[i], type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER, margins: { left: 80, right: 80, top: 30, bottom: 30 },
+    children: [p([run(t, { size: 20 })], { alignment: i === 1 ? AlignmentType.LEFT : C })],
+  });
+  const trow = (arr) => new TableRow({ cantSplit: true, children: arr.map((t, i) => tcell(i, t)) });
+  const table = new Table({
+    columnWidths: TW, layout: TableLayoutType.FIXED, width: { size: 10466, type: WidthType.DXA },
+    borders: { top: line, bottom: line, left: line, right: line, insideHorizontal: line, insideVertical: line },
+    rows: [trow(["№", "ФД №", "Дата", "Рублей", "Копеек"]), ...e.checks.map((c, i) => {
+      const k = Math.round((+c.sum || 0) * 100);
+      return trow([String(i + 1), c.fd, c.date, String(Math.floor(k / 100)), String(k % 100).padStart(2, "0")]);
+    })],
+  });
+
+  // строка подписи: ячейки с линией снизу и подписи под ними мелким шрифтом
+  const sigTable = (SW, top, caps) => new Table({
+    columnWidths: SW, layout: TableLayoutType.FIXED, width: { size: SW.reduce((s, x) => s + x, 0), type: WidthType.DXA },
+    borders: { ...noB, insideHorizontal: NB, insideVertical: NB },
+    rows: [
+      new TableRow({ cantSplit: true, height: { value: 560, rule: HeightRule.ATLEAST }, children: top.map((c, i) => new TableCell({
+        width: { size: SW[i], type: WidthType.DXA }, borders: c.line ? { ...noB, bottom: line } : noB, verticalAlign: VerticalAlign.BOTTOM,
+        margins: { left: 40, right: 40, top: 0, bottom: 0 }, children: [p([run(c.t || "")], { alignment: c.al || C })] })) }),
+      new TableRow({ children: caps.map((t, i) => new TableCell({
+        width: { size: SW[i], type: WidthType.DXA }, borders: noB, verticalAlign: VerticalAlign.TOP,
+        margins: { left: 40, right: 40, top: 0, bottom: 0 }, children: [p([run(t || "", { size: 16 })], { alignment: C })] })) }),
+    ],
+  });
+  const ruled = () => p([run(" ")], { spacing: { before: 200 }, border: { bottom: line } });
+
+  return new Document({
+    creator: "GearProduction",
+    title: "Отчет о хозяйственных расходах",
+    styles: { default: { document: { run: { font: "Tahoma", size: 24 } } } },
+    sections: [{
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
+      children: [
+        ...stampParas(docx, e.apprPos, e.apprName),
+        p([run("Отчет о хозяйственных расходах", { bold: true })], { alignment: C, spacing: { before: 360, after: 120 } }),
+        field("Подразделение:", e.dept),
+        field("Проект:", e.project),
+        p([run("Цель: "), run(goal[0] || " ", u)], { alignment: J, spacing: { before: 120 } }),
+        ...goal.slice(1).map((t) => p([run(t, u)], { alignment: J })),
+        p([run("Расходы:")], { spacing: { before: 120, after: 80 } }),
+        table,
+        p([run("Итого: "), run(rub(total), u)], { alignment: J, spacing: { before: 160 } }),
+        p([run("Отметка руководителя о потраченных расходах")], { spacing: { before: 200 } }),
+        ruled(), ruled(),
+        p([run("Расходы подтверждаю, к оплате "), run(rub(total), u)], { spacing: { before: 240 } }),
+        sigTable([2800, 2000, 200, 2700, 200, 2566], [{ t: "“__”_________ 20__ г.", al: AlignmentType.LEFT }, { line: 1 }, {}, { line: 1 }, {}, { line: 1 }],
+          ["", "(подпись)", "", "(должность)", "", "(Ф.И.О.)"]),
+        p([run("", { size: 12 })], { spacing: { before: 160 } }), // без абзаца Word сливает таблицы в одну
+        sigTable([1900, 3100, 200, 2300, 200, 2766], [{ t: "Ответственный", al: AlignmentType.LEFT }, { t: e.respPos, line: 1 }, {}, { t: e.respName, line: 1 }, {}, { t: e.dateText }],
+          ["", "(должность)", "", "(Ф.И.О.)", "", ""]),
+        p([run("", { size: 2 })], { spacing: { before: 0, after: 0, line: 20, lineRule: "exact" } }),
+      ],
+    }],
+  });
+}
+if (typeof module !== "undefined") module.exports = { buildDoc, buildExp, buildHoz, rub };

@@ -56,8 +56,6 @@ nav button.on{color:var(--ink);border-color:var(--ink)}
 .doc>span{flex:1;min-width:0}
 .doc b{display:block;font-size:18px;line-height:1.3}
 .doc small{display:block;font-weight:450;color:var(--mut);font-size:14px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.doc:disabled{border:1.5px dashed var(--line);opacity:.6;cursor:default}
-.doc:disabled:active{transform:none;background:var(--surf)}
 body.home{padding-bottom:calc(var(--fB) + 20px)}
 
 main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(var(--fL) + 16px)}
@@ -141,7 +139,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .step input:focus-visible{outline-offset:-3px}
 .item .del{margin-top:2px}
 .item>.row2{margin-bottom:14px}.item>.row2 .btn{padding:0 8px;gap:8px;white-space:nowrap}
-#exp .grid{grid-auto-flow:dense} /* «Подписи» встают рядом с «Отчётом», на телефоне остаются после чеков */
+#exp .grid,#hoz .grid{grid-auto-flow:dense} /* «Подписи» встают рядом с «Отчётом», на телефоне остаются после чеков */
 .tot{margin:16px 2px 0;font-size:19px}
 
 /* кнопки */
@@ -183,7 +181,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   .tb-act{padding:8px 12px}
   .tb-act .st{display:inline-flex}
   #stNext,#preview{flex:1}
-  #newAct,#expNew{padding:0;width:var(--tap)}#newAct .lb,#expNew .lb{display:none}#expPreview{flex:1}
+  #newAct,#expNew,#hozNew{padding:0;width:var(--tap)}#newAct .lb,#expNew .lb,#hozNew .lb{display:none}#expPreview,#hozPreview{flex:1}
   #preview{display:none}
   body.last #preview{display:inline-flex}body.last #stNext{display:none}
 }
@@ -253,7 +251,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   <div class="docs">
    <button type="button" class="doc" data-go="act"><svg class="ic"><use href="#i-file"/></svg><span><b>Акт сервисных работ</b><small id="hAct"></small></span><svg class="ic"><use href="#i-next"/></svg></button>
    <button type="button" class="doc" data-go="exp"><svg class="ic"><use href="#i-cart"/></svg><span><b>Отчёт о покупке вспомогательных материалов</b><small id="hExp"></small></span><svg class="ic"><use href="#i-next"/></svg></button>
-   <button type="button" class="doc" disabled><svg class="ic"><use href="#i-coin"/></svg><span><b>Отчёт о хозрасходах</b><small>Скоро</small></span></button>
+   <button type="button" class="doc" data-go="hoz"><svg class="ic"><use href="#i-coin"/></svg><span><b>Отчёт о хозрасходах</b><small id="hHoz"></small></span><svg class="ic"><use href="#i-next"/></svg></button>
   </div>
  </div>
 </section>
@@ -342,6 +340,34 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
  </div>
 </section>
 
+<section class="tab" id="hoz">
+ <div class="grid">
+  <div class="sec">
+    <h2>Отчёт о хозрасходах</h2>
+    <div class="fld"><label for="hGoal">Цель</label><div class="inw m"><textarea id="hGoal" style="min-height:110px"></textarea></div><p class="hint">Новая строка — новая строка в отчёте. Например, вторая строка: «- Bai Shaohua».</p><p class="err">Укажите цель расходов</p></div>
+    <div class="fld"><label for="hProject">Проект</label><div class="inw m"><textarea id="hProject" style="min-height:84px"></textarea></div><p class="hint">Станок, договор, титул сделки.</p></div>
+    <div class="fld"><label for="hDept">Подразделение</label><div class="inw"><input id="hDept" data-set="dept" autocomplete="off"></div></div>
+  </div>
+
+  <div class="sec full">
+    <h2>Чеки</h2>
+    <div id="hChecks"></div>
+    <button class="btn w" id="hAddCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить чек</button>
+    <p class="tot">Итого: <b id="hTot">0 руб. 00 коп.</b></p>
+  </div>
+
+  <div class="sec">
+    <h2>Подписи</h2>
+    <div class="fld"><label for="hApprPos">Утверждает: должность</label><div class="inw"><input id="hApprPos" data-set="hozApprPos" autocomplete="off"></div></div>
+    <div class="fld"><label for="hApprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="hApprName" data-set="hozApprName" autocomplete="off"></div></div>
+    <div class="fld" data-k="hresp"><span class="lbl">Ответственный</span><div class="chips" id="hResp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
+    <div class="fld"><label for="hRespPos">Должность ответственного</label><div class="inw"><input id="hRespPos" data-set="respPos" autocomplete="off"></div></div>
+    <div class="fld"><label for="hDate">Дата отчёта</label><input class="in" type="date" id="hDate" style="max-width:320px"></div>
+    <p class="hint">Кто утверждает и подразделение запоминаются для следующих отчётов.</p>
+  </div>
+ </div>
+</section>
+
 <section class="tab" id="staff">
  <div class="grid">
   <div class="sec">
@@ -397,6 +423,16 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   <div class="tb-act">
     <button class="btn" id="expNew" type="button" aria-label="Новый отчёт"><svg class="ic"><use href="#i-new"/></svg><span class="lb">Новый</span></button>
     <button class="btn p" id="expPreview" type="button"><svg class="ic"><use href="#i-eye"/></svg>Просмотр отчёта</button>
+  </div>
+</div></div>
+
+<div class="bar hide" id="hozbar"><div class="tb">
+  <div class="tbc"><small>Цель</small><b id="tbHG"></b></div>
+  <div class="tbc sm"><small>Чеков</small><b id="tbHN"></b></div>
+  <div class="tbc"><small>Итого</small><b id="tbHT"></b></div>
+  <div class="tb-act">
+    <button class="btn" id="hozNew" type="button" aria-label="Новый отчёт"><svg class="ic"><use href="#i-new"/></svg><span class="lb">Новый</span></button>
+    <button class="btn p" id="hozPreview" type="button"><svg class="ic"><use href="#i-eye"/></svg>Просмотр отчёта</button>
   </div>
 </div></div>
 
