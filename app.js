@@ -2,7 +2,11 @@
 const $ = (id) => document.getElementById(id);
 const KEY = { staff: "akt.staff", hist: "akt.hist", set: "akt.set", draft: "akt.draft", expDraft: "akt.expDraft", hozDraft: "akt.hozDraft" };
 const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
-const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { toast("Память браузера недоступна"); } };
+// false — запись не прошла (память заполнена или запрещена): данные живут только до закрытия приложения
+const save = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch { toast("Не сохранилось на устройстве: после закрытия приложения изменения пропадут. Сделайте Архив → Экспорт.", 8000); return false; }
+};
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 const todayISO = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const ic = (n) => `<svg class="ic"><use href="#i-${n}"/></svg>`;
@@ -26,9 +30,9 @@ const hasEng = () => staff.some((s) => !s.sign);
 const engAt = (i) => (staff[i] && !staff[i].sign ? i : staff.findIndex((s) => !s.sign)); // -1, если инженеров нет
 let curId = null, engIdx = 0, curExpId = null, respIdx = 0, curHozId = null, hrespIdx = 0;
 
-function toast(t) {
+function toast(t, ms = 3000) {
   const e = $("toast"); e.textContent = t; e.style.display = "block";
-  clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.display = "none"), 3000);
+  clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.display = "none"), ms);
 }
 
 // ---------- вкладки ----------
@@ -226,21 +230,37 @@ function renderStaff() {
   staffChips($("resp"), "resp", respIdx, (i) => { respIdx = i; persistExp(); });
   staffChips($("hResp"), "hresp", hrespIdx, (i) => { hrespIdx = i; persistHoz(); });
   document.querySelectorAll("[data-pos]").forEach(svBtn);
-  $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
+  $("sList").innerHTML = staff.length ? "" : '<p class="empty">Пока никого. Добавьте инженеров: их можно будет выбрать в акте и отчётах.</p>';
   staff.forEach((s, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
     r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = [s.pos, s.sign && "подписант"].filter(Boolean).join(" · ");
-    const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
-    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = engAt(-1); save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
+    const x = mk(`<button class="btn d">${ic("trash")}</button>`); x.setAttribute("aria-label", `Удалить ${s.name}`);
+    x.onclick = () => { if (confirm(`Удалить «${s.name}» из списка сотрудников? Документы в архиве не изменятся.`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = engAt(-1); save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
     const t = mk(`<button class="btn"></button>`); t.textContent = s.sign ? "В инженеры" : "В подписанты";
     t.onclick = () => { s.sign = !s.sign; save(KEY.staff, staff); engIdx = engAt(engIdx); respIdx = engAt(respIdx); hrespIdx = engAt(hrespIdx); renderStaff(); persist(); persistExp(); persistHoz(); };
     r.append(t, x); $("sList").appendChild(r);
   });
 }
+// ошибка под полем, а не всплывающим сообщением: оно исчезает через 3 с, а поле остаётся подсвеченным до исправления
+function sNameErr(msg) {
+  const i = $("sName"), f = i.closest(".fld");
+  f.classList.toggle("bad", !!msg); i.setAttribute("aria-invalid", !!msg); $("sNameErr").textContent = msg || "";
+  if (msg) i.focus();
+}
+$("sName").oninput = () => sNameErr("");
+$("sName").onkeydown = (e) => { if (e.key === "Enter") $("sPos").focus(); };
+$("sPos").onkeydown = (e) => { if (e.key === "Enter") $("sAdd").click(); };
 $("sAdd").onclick = () => {
-  const name = $("sName").value.trim(), pos = $("sPos").value.trim() || "сервисный инженер";
-  if (!name) return toast("Введите Ф. И. О.");
-  staff.push({ name, pos, sign: $("sSign").checked }); save(KEY.staff, staff); $("sName").value = ""; renderStaff(); toast("Сотрудник добавлен");
+  const name = $("sName").value.trim(), pos = $("sPos").value.trim() || "сервисный инженер", sign = $("sSign").checked;
+  if (!name) return sNameErr("Введите Ф. И. О. так, как оно стоит в подписи, например «Иванов И. И.»");
+  // «Иванов И.И.» и «иванов и. и.» — один человек: сравниваем без пробелов, регистра и ё
+  const key = (n) => n.toLowerCase().replace(/ё/g, "е").replace(/\s/g, "");
+  const dup = staff.find((s) => key(s.name) === key(name));
+  if (dup) return sNameErr(dup.sign === sign ? `«${dup.name}» уже есть в списке`
+    : `«${dup.name}» уже есть в списке как ${dup.sign ? "подписант" : "инженер"}. Сменить роль можно кнопкой рядом с именем в списке`);
+  sNameErr(""); staff.push({ name, pos, sign });
+  const ok = save(KEY.staff, staff); $("sName").value = ""; renderStaff();
+  if (ok) toast(`${name} — в списке ${sign ? "подписантов" : "сотрудников"}`);
 };
 // поля с data-set хранятся в настройках и переживают «Новый»: производитель, подразделение, подписи отчёта
 const showSettings = () => document.querySelectorAll("[data-set]").forEach((i) => (i.value = settings[i.dataset.set] ?? ""));
@@ -256,8 +276,8 @@ function svBtn(i) {
   if (!b) {
     b = mk(`<button type="button" class="sv">${ic("plus")}Запомнить в списке сотрудников</button>`);
     b.onclick = () => {
-      staff.push({ name: i.value.trim(), pos: $(i.dataset.pos).value.trim(), sign: true }); save(KEY.staff, staff);
-      renderStaff(); toast("Добавлен в список сотрудников");
+      staff.push({ name: i.value.trim(), pos: $(i.dataset.pos).value.trim(), sign: true });
+      const ok = save(KEY.staff, staff); renderStaff(); if (ok) toast(`${i.value.trim()} — в списке подписантов`);
     };
     i.closest(".fld").appendChild(b);
   }

@@ -132,6 +132,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .sw i{width:52px;height:32px;border-radius:4px;background:var(--line);position:relative;transition:background .2s var(--ease);flex:none}
 .sw i::after{content:"";position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:2px;background:var(--surf);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .2s var(--ease)}
 .sw input:checked+i{background:var(--acc)}.sw input:checked+i::after{transform:translateX(20px)}
+.sw small{display:block;font-size:14px;font-weight:400;color:var(--mut);margin-top:2px}
 .sw:has(input:focus-visible){outline:3px solid var(--acc);outline-offset:2px}
 
 /* строки запчастей и работ */
@@ -457,9 +458,9 @@ setTimeout(x,matchMedia("(prefers-reduced-motion:reduce)").matches?450:2300);s.a
  <div class="grid">
   <div class="sec">
     <h2>Новый сотрудник или подписант</h2>
-    <div class="fld"><label for="sName">Ф. И. О. как в подписи</label><div class="inw"><input id="sName" autocomplete="off" placeholder="Иванов И. И."></div></div>
-    <div class="fld"><label for="sPos">Должность</label><div class="inw"><input id="sPos" value="сервисный инженер" autocomplete="off"></div></div>
-    <label class="sw" style="margin-bottom:16px"><span>Подписант: только в списке «Утверждает» и «К оплате»</span><input type="checkbox" id="sSign"><i></i></label>
+    <div class="fld"><label for="sName">Ф. И. О. как в подписи</label><div class="inw"><input id="sName" autocomplete="off" placeholder="Иванов И. И." aria-describedby="sNameErr" enterkeyhint="next"></div><p class="err" id="sNameErr"></p></div>
+    <div class="fld"><label for="sPos">Должность</label><div class="inw"><input id="sPos" value="сервисный инженер" autocomplete="off" enterkeyhint="done"></div><p class="hint">В документе встанет так, как написана здесь.</p></div>
+    <label class="sw" style="margin-bottom:16px"><span>Подписант<small>Только в полях «Утверждает» и «К&nbsp;оплате», не в выборе инженера или ответственного</small></span><input type="checkbox" id="sSign"><i></i></label>
     <button class="btn p w" id="sAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить в список</button>
   </div>
   <div class="sec">
