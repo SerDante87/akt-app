@@ -214,6 +214,9 @@ function renderStaff() {
   staffChips($("engineer"), "eng", engIdx, (i) => { engIdx = i; persist(); });
   staffChips($("resp"), "resp", respIdx, (i) => { respIdx = i; persistExp(); });
   staffChips($("hResp"), "hresp", hrespIdx, (i) => { hrespIdx = i; persistHoz(); });
+  $("dl-staff").innerHTML = "";
+  staff.forEach((s) => { const o = document.createElement("option"); o.value = s.name; o.label = s.pos; $("dl-staff").appendChild(o); });
+  document.querySelectorAll("[data-pos]").forEach(svBtn);
   $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
   staff.forEach((s, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
@@ -235,19 +238,38 @@ document.querySelectorAll("[data-set]").forEach((i) => (i.oninput = () => {
   settings[i.dataset.set] = i.value; save(KEY.set, settings);
   document.querySelectorAll(`[data-set=${i.dataset.set}]`).forEach((o) => { if (o !== i) o.value = i.value; });
 }));
+// подписанты: Ф. И. О. из списка сотрудников подставляет должность; нового человека можно запомнить одним касанием
+const byName = (n) => staff.find((s) => s.name === n.trim());
+function svBtn(i) {
+  let b = i.closest(".fld").querySelector(".sv");
+  if (!b) {
+    b = mk(`<button type="button" class="sv">${ic("plus")}Запомнить в списке сотрудников</button>`);
+    b.onclick = () => {
+      staff.push({ name: i.value.trim(), pos: $(i.dataset.pos).value.trim() }); save(KEY.staff, staff);
+      renderStaff(); toast("Добавлен в список сотрудников");
+    };
+    i.closest(".fld").appendChild(b);
+  }
+  b.classList.toggle("hide", !i.value.trim() || !!byName(i.value));
+}
+document.querySelectorAll("[data-pos]").forEach((i) => i.addEventListener("input", () => {
+  const p = byName(i.value), pos = $(i.dataset.pos);
+  if (p && p.pos && pos.value !== p.pos) { pos.value = p.pos; pos.dispatchEvent(new Event("input", { bubbles: true })); }
+  svBtn(i);
+}));
 showSettings();
 
 // ---------- архив ----------
+const KINDS = { act: { name: "Акт о сервисе", icon: "file" }, exp: { name: "Акт о материалах", icon: "cart" }, hoz: { name: "Акт о хозрасходах", icon: "coin" } };
 function renderHist() {
-  $("hList").innerHTML = hist.length ? "" : '<p class="empty">Пока пусто. Акт попадает сюда при сохранении DOCX или PDF.</p>';
+  $("hList").innerHTML = hist.length ? "" : '<p class="empty">Пока пусто. Документ попадает сюда при сохранении DOCX или PDF.</p>';
   const tab = go;
   hist.forEach((h, i) => {
-    const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
-    const k = h.kind || "act";
-    r.querySelector("b").textContent = k === "exp" ? "Материалы: " + (h.goal || "(без цели)") : k === "hoz" ? "Хозрасходы: " + (h.goal[0] || "(без цели)")
-      : h.customer || "(без заказчика)";
-    r.querySelector("small").textContent = k === "act" ? [h.machine, h.serial, h.dateText].filter(Boolean).join(" · ")
-      : [h.checks.map((c) => "ФД " + c.fd).join(", "), rub(checksTotal(h.checks))].join(" · ");
+    const k = h.kind || "act", t = KINDS[k];
+    const r = mk(`<div class="it">${ic(t.icon)}<div><b></b><small></small></div></div>`);
+    r.querySelector("b").textContent = k === "exp" ? h.goal || "(без цели)" : k === "hoz" ? h.goal[0] || "(без цели)" : h.customer || "(без заказчика)";
+    r.querySelector("small").textContent = [t.name, ...(k === "act" ? [h.machine, h.serial, h.dateText]
+      : [h.dateText || h.checks[0]?.date, "чеков: " + h.checks.length, money(checksTotal(h.checks))])].filter(Boolean).join(" · ");
     const o = mk(`<button class="btn">Открыть</button>`);
     o.onclick = () => {
       if (k === "exp") { curExpId = h._id; fillExp(h); } else if (k === "hoz") { curHozId = h._id; fillHoz(h); } else { curId = h._id; fill(h); }
@@ -261,7 +283,7 @@ function renderHist() {
       tab(k);
     };
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
-    x.onclick = () => { if (confirm("Удалить акт из архива?")) { hist.splice(i, 1); save(KEY.hist, hist); renderHist(); } };
+    x.onclick = () => { if (confirm(`Удалить «${t.name}» из архива?`)) { hist.splice(i, 1); save(KEY.hist, hist); renderHist(); } };
     r.append(o, c, x); $("hList").appendChild(r);
   });
   ["customer", "address", "machine", "contract"].forEach((k) => {
@@ -393,8 +415,10 @@ $("act").addEventListener("input", refreshSteps);
 narrow.addEventListener("change", refreshSteps);
 
 // ---------- отчёт о хозрасходах ----------
-// чек: ФД, дата, сумма и фото с QR-кодом; в материалах ещё позиции (items), в хозрасходах — нет
-function addCheck(c = {}, box = $("checks"), withItems = true) {
+// чек: ФД, дата, сумма (из QR-кода или вручную); в материалах ещё позиции (items), в хозрасходах — нет.
+// В списке чек свёрнут в строку «№ · ФД · дата · сумма», поля раскрываются по касанию, открыт один за раз
+const money = (n) => (+n || 0).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+function addCheck(c = {}, box = $("checks"), withItems = true, open = false) {
   const r = mk(`<div class="irow"></div>`);
   r.append(field("ФД №", "fd", c.fd || "", { err: "Укажите номер ФД" }), field("Дата чека", "date", c.date || todayISO(), { type: "date" }),
     field("Сумма, руб.", "sum", c.sum || "", { err: "Укажите сумму" }));
@@ -402,15 +426,41 @@ function addCheck(c = {}, box = $("checks"), withItems = true) {
   const items = mk(`<div class="fld"><label>Позиции</label><div class="inw m"><textarea data-f="items" style="min-height:96px"></textarea></div>
     <p class="hint">Одна строка — одна позиция. Цену можно дописать в конце: «Клей 20 г – 381 р.»</p></div>`);
   items.querySelector("textarea").value = c.items || "";
-  // на Android поле без capture открывает только галерею — камера отдельной кнопкой
-  const scan = mk(`<div class="row2"><button type="button" class="btn">${ic("cam")}Снять чек</button><button type="button" class="btn">Из галереи</button></div>`);
-  const it = item(withItems ? [scan, r, items] : [scan, r], () => box.dispatchEvent(new Event("input", { bubbles: true })));
-  const [cam, gal] = scan.children;
-  cam.onclick = () => { scanFor = it; $("qrCam").click(); };
-  gal.onclick = () => { scanFor = it; $("qrFile").click(); };
+  const head = mk(`<button type="button" class="ck-sum" aria-expanded="false"><span class="ck-n"></span><span class="ck-fd"><b></b><small></small></span><span class="ck-s"></span>${ic("next")}</button>`);
+  const it = item(withItems ? [head, r, items] : [head, r], () => box.dispatchEvent(new Event("input", { bubbles: true })));
+  it.classList.add("ck");
+  head.onclick = () => openCheck(it, !it.classList.contains("open"));
   box.appendChild(it); mics(it);
+  box.closest(".bad")?.classList.remove("bad");
+  ckLabels(box);
+  if (open) { openCheck(it, true); it.querySelector("[data-f=fd]").focus(); }
+  return it;
 }
-$("addCheck").onclick = () => { addCheck(); persistExp(); };
+function openCheck(it, on) {
+  it.parentElement.querySelectorAll(".ck.open").forEach((x) => { if (x !== it) { x.classList.remove("open"); x.firstChild.setAttribute("aria-expanded", "false"); } });
+  it.classList.toggle("open", on); it.firstChild.setAttribute("aria-expanded", String(on));
+}
+function ckLabels(box) {
+  [...box.children].forEach((it, i) => {
+    const g = (f) => it.querySelector(`[data-f=${f}]`)?.value.trim() || "", b = it.querySelector(".ck-fd b"), n = lines(g("items")).length;
+    it.querySelector(".ck-n").textContent = i + 1;
+    b.textContent = g("fd") ? "ФД № " + g("fd") : "ФД не указан"; b.classList.toggle("no", !g("fd"));
+    it.querySelector(".ck-fd small").textContent = [fmtShort(g("date")), n ? "позиций: " + n : ""].filter(Boolean).join(" · ");
+    it.querySelector(".ck-s").textContent = num(g("sum")) > 0 ? money(num(g("sum"))) : "—";
+  });
+}
+// проверка чеков: пустой список или чек без ФД/суммы; первый чек с ошибкой раскрывается
+function markChecks(box, mark) {
+  mark(box, !box.children.length);
+  [...box.children].forEach((it) => {
+    const g = (f) => it.querySelector(`[data-f=${f}]`);
+    mark(g("fd"), !g("fd").value.trim());
+    mark(g("sum"), !(num(g("sum").value) > 0));
+  });
+  const first = [...box.children].find((x) => x.querySelector(".bad"));
+  if (first) openCheck(first, true);
+}
+$("addCheck").onclick = () => { addCheck({}, $("checks"), true, true); persistExp(); };
 
 function collectExp() {
   const rows = rowsOf($("checks")), s = staff[respIdx] || {};
@@ -425,8 +475,7 @@ function collectExp() {
 function fillExp(d) {
   $("goal").value = d.goal || "";
   $("checks").innerHTML = "";
-  (d._checks || []).forEach(addCheck);
-  if (!$("checks").children.length) addCheck();
+  (d._checks || []).forEach((c) => addCheck(c));
   respIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
   renderStaff(); refreshExp();
 }
@@ -434,7 +483,7 @@ function persistExp() { save(KEY.expDraft, { ...collectExp(), _id: curExpId, _pv
 function refreshExp() {
   const d = collectExp();
   $("expTot").textContent = $("tbT").textContent = rub(checksTotal(d.checks));
-  $("tbG").textContent = d.goal || "—"; $("tbN").textContent = d.checks.length;
+  $("tbG").textContent = d.goal || "—"; $("tbN").textContent = d.checks.length; ckLabels($("checks"));
 }
 $("exp").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); refreshExp(); persistExp(); });
 $("exp").addEventListener("change", persistExp);
@@ -443,11 +492,7 @@ function validateExp(d) {
   const bad = [];
   const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
   mark($("goal"), !d.goal);
-  [...$("checks").children].forEach((it) => {
-    const g = (f) => it.querySelector(`[data-f=${f}]`);
-    mark(g("fd"), !g("fd").value.trim());
-    mark(g("sum"), !(num(g("sum").value) > 0));
-  });
+  markChecks($("checks"), mark);
   if (!staff.length) mark($("resp"), true);
   return bad;
 }
@@ -458,7 +503,7 @@ $("expNew").onclick = () => {
 
 // ---------- отчёт о хозрасходах (АО): таблица ФД без позиций ----------
 const addHozCheck = (c = {}) => addCheck(c, $("hChecks"), false);
-$("hAddCheck").onclick = () => { addHozCheck(); persistHoz(); };
+$("hAddCheck").onclick = () => { addCheck({}, $("hChecks"), false, true); persistHoz(); };
 function collectHoz() {
   const rows = rowsOf($("hChecks")), s = staff[hrespIdx] || {}, iso = $("hDate").value, [y, m, dd] = iso ? iso.split("-") : [];
   return {
@@ -474,8 +519,7 @@ function fillHoz(d) {
   $("hGoal").value = d._txt?.goal ?? ""; $("hEng").value = d._txt?.eng ?? ""; $("hProject").value = d._txt?.project ?? "";
   $("hDate").value = d._iso || todayISO();
   $("hChecks").innerHTML = "";
-  (d._checks || []).forEach(addHozCheck);
-  if (!$("hChecks").children.length) addHozCheck();
+  (d._checks || []).forEach((c) => addHozCheck(c));
   hrespIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
   renderStaff(); refreshHoz();
 }
@@ -484,7 +528,7 @@ function persistAll() { persist(); persistExp(); persistHoz(); }
 function refreshHoz() {
   const d = collectHoz();
   $("hTot").textContent = $("tbHT").textContent = rub(checksTotal(d.checks));
-  $("tbHG").textContent = d.goal[0] || "—"; $("tbHN").textContent = d.checks.length;
+  $("tbHG").textContent = d.goal[0] || "—"; $("tbHN").textContent = d.checks.length; ckLabels($("hChecks"));
 }
 $("hoz").addEventListener("input", (e) => { e.target.closest(".bad")?.classList.remove("bad"); refreshHoz(); persistHoz(); });
 $("hoz").addEventListener("change", persistHoz);
@@ -493,11 +537,7 @@ function validateHoz(d) {
   const bad = [];
   const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
   mark($("hGoal"), !lines($("hGoal").value).length);
-  [...$("hChecks").children].forEach((it) => {
-    const g = (f) => it.querySelector(`[data-f=${f}]`);
-    mark(g("fd"), !g("fd").value.trim());
-    mark(g("sum"), !(num(g("sum").value) > 0));
-  });
+  markChecks($("hChecks"), mark);
   if (!staff.length) mark($("hResp"), true);
   return bad;
 }
@@ -513,36 +553,111 @@ function parseCheckQR(s) {
   return { fd: i, date: /^\d{8}/.test(t) ? `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}` : "", sum: (p.get("s") || "").replace(".", ",") };
 }
 console.assert(JSON.stringify(parseCheckQR("t=20250920T1234&s=15990.00&fn=7380440800&i=19478&fp=123&n=1")) === '{"fd":"19478","date":"2025-09-20","sum":"15990,00"}', "parseCheckQR");
+let detector = null;
+try { if ("BarcodeDetector" in window) detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch {}
+// на iPad BarcodeDetector нет — jsQR
+async function detectQR(src, w, h, fast) {
+  if (detector) { try { const r = await detector.detect(src); if (r[0]) return r[0].rawValue; } catch {} }
+  if (!window.jsQR) return null;
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(src, 0, 0, w, h);
+  return jsQR(x.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: fast ? "dontInvert" : "attemptBoth" })?.data || null;
+}
+// фото из галереи: код на чеке мелкий, поэтому несколько масштабов
 async function readQR(file) {
   const img = await createImageBitmap(file);
-  if ("BarcodeDetector" in window) {
-    try { const r = await new BarcodeDetector({ formats: ["qr_code"] }).detect(img); if (r[0]) return r[0].rawValue; } catch {}
-  }
-  // на iPad BarcodeDetector нет — jsQR; код на чеке мелкий, поэтому пробуем несколько масштабов
-  for (const max of [1600, 1000, 2400]) {
-    const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
-    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-    const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0, c.width, c.height);
-    const q = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
-    if (q) return q.data;
+  for (const max of [1600, 1000, 2400, 700]) {
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const r = await detectQR(img, Math.round(img.width * k), Math.round(img.height * k));
+    if (r) return r;
+    if (detector) break; // детектор сам смотрит всё фото, масштабы нужны только jsQR
   }
   return null;
 }
-let scanFor = null;
+
+// куда кладём найденные чеки: «Материалы» или «Хозрасходы»
+let scanBox = null;
+// один и тот же чек дважды не добавляем: ФД уникален только в своём ФН, поэтому вместе с датой и суммой
+const checkKey = (c) => [c.fd, fmtShort(c.date), num(c.sum) || 0].join("|");
+// новый чек из QR. Возвращает текст для подсказки
+function addScanned(raw) {
+  const c = parseCheckQR(raw);
+  if (!c) return "Это не QR-код кассового чека";
+  if (rowsOf(scanBox).some((r) => checkKey(r) === checkKey(c))) return `ФД № ${c.fd} уже в списке`;
+  const it = scanBox === $("checks") ? addCheck(c) : addHozCheck(c);
+  it.classList.add("new"); setTimeout(() => it.classList.remove("new"), 1300);
+  scanBox.dispatchEvent(new Event("input", { bubbles: true })); // форма сама пересчитает итог и сохранит черновик
+  return `Добавлен ФД № ${c.fd} · ${money(num(c.sum))}`;
+}
+document.querySelectorAll("[data-gal]").forEach((b) => (b.onclick = () => { scanBox = $(b.dataset.gal); $("qrFile").click(); }));
+// фото из галереи (можно несколько сразу) и с камеры — запасной путь без живой камеры
 $("qrFile").onchange = $("qrCam").onchange = async (e) => {
-  const f = e.target.files[0]; e.target.value = "";
-  if (!f || !scanFor) return;
+  const files = [...e.target.files]; e.target.value = "";
+  if (!files.length || !scanBox) return;
   toast("Ищу QR-код…");
-  try {
-    const c = parseCheckQR(await readQR(f));
-    if (!c) return toast("QR-код чека не найден. Снимите код крупнее или введите номер вручную");
-    const g = (k) => scanFor.querySelector(`[data-f=${k}]`);
-    g("fd").value = c.fd; if (c.date) g("date").value = c.date; if (c.sum) g("sum").value = c.sum;
-    scanFor.querySelectorAll(".bad").forEach((x) => x.classList.remove("bad"));
-    g("fd").dispatchEvent(new Event("input", { bubbles: true })); // форма сама пересчитает итог и сохранит черновик
-    toast(`ФД № ${c.fd} заполнен`);
-  } catch (err) { console.error(err); toast("Не удалось прочитать фото"); }
+  let ok = 0, miss = 0, last = "";
+  for (const f of files) {
+    try { const raw = await readQR(f); if (raw) { last = addScanned(raw); ok += last.startsWith("Добавлен"); } else miss++; } catch (err) { console.error(err); miss++; }
+  }
+  toast(files.length === 1 ? (miss ? "QR-код не найден. Попробуйте «Сканировать QR» или введите вручную" : last)
+    : `Добавлено чеков: ${ok}` + (miss ? `, без QR-кода: ${miss}` : ""));
 };
+
+// живой сканер: кадры с камеры, читаем только область прицела — быстрее и надёжнее, чем одно фото
+let scanStream = null, scanTimer = 0, scanLast = "", scanN = 0;
+document.querySelectorAll("[data-scan]").forEach((b) => (b.onclick = () => startScan($(b.dataset.scan))));
+async function startScan(box) {
+  scanBox = box;
+  if (!navigator.mediaDevices?.getUserMedia) return $("qrCam").click();
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } });
+  } catch (e) {
+    console.error(e); toast("Камера недоступна — сделайте фото чека"); return $("qrCam").click();
+  }
+  const v = $("scanV"), tr = scanStream.getVideoTracks()[0];
+  try { await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch {}
+  $("scanTorch").classList.toggle("hide", !tr.getCapabilities?.().torch);
+  scanLast = ""; scanN = 0; $("scanMsg").textContent = "Наведите камеру на QR-код чека. Чеки можно снимать подряд.";
+  $("scan").classList.remove("hide"); document.body.style.overflow = "hidden";
+  v.srcObject = scanStream; await v.play().catch(() => {});
+  scanTick();
+}
+async function scanTick() {
+  const v = $("scanV");
+  if (!scanStream) return;
+  if (v.readyState >= 2 && v.videoWidth) {
+    // прицел в пикселях кадра: видео растянуто по cover; берём область в 1,4 раза больше прицела
+    const W = v.videoWidth, H = v.videoHeight, rv = v.getBoundingClientRect(), k = Math.max(rv.width / W, rv.height / H);
+    const win = $("scan").querySelector(".scan-win").getBoundingClientRect();
+    const side = Math.min(W, H, (win.width * 1.4) / k);
+    const cx = W / 2 + (win.left + win.width / 2 - rv.left - rv.width / 2) / k, cy = H / 2 + (win.top + win.height / 2 - rv.top - rv.height / 2) / k;
+    const sx = Math.max(0, Math.min(W - side, cx - side / 2)), sy = Math.max(0, Math.min(H - side, cy - side / 2));
+    const out = Math.min(800, Math.round(side)), c = document.createElement("canvas");
+    c.width = c.height = out; c.getContext("2d").drawImage(v, sx, sy, side, side, 0, 0, out, out);
+    const raw = await detectQR(c, out, out, true).catch(() => null);
+    if (raw && raw !== scanLast && scanStream) {
+      scanLast = raw;
+      const m = addScanned(raw);
+      if (m.startsWith("Добавлен")) { scanN++; navigator.vibrate?.(60); }
+      $("scanMsg").textContent = m + (scanN ? `. Добавлено за сеанс: ${scanN}` : "");
+    }
+  }
+  scanTimer = setTimeout(scanTick, 120);
+}
+function stopScan() {
+  clearTimeout(scanTimer);
+  scanStream?.getTracks().forEach((t) => t.stop()); scanStream = null;
+  $("scanV").srcObject = null; $("scan").classList.add("hide"); document.body.style.overflow = "";
+}
+$("scanDone").onclick = stopScan;
+$("scanTorch").onclick = async () => {
+  const on = !$("scanTorch").classList.contains("on");
+  try {
+    await scanStream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: on }] });
+    $("scanTorch").classList.toggle("on", on); $("scanTorch").textContent = on ? "Выключить фонарик" : "Фонарик";
+  } catch {}
+};
+document.addEventListener("visibilitychange", () => { if (document.hidden && scanStream) stopScan(); });
 
 // ---------- старт ----------
 renderHist();

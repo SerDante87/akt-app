@@ -61,6 +61,7 @@ body.home{padding-bottom:calc(var(--fB) + 20px)}
 main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(var(--fL) + 16px)}
 .tab{display:none}.tab.on{display:block}
 .grid{display:grid;gap:30px 48px}
+.grid>*{min-width:0} /* длинное название в архиве не распирает колонку шире экрана */
 @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}.full{grid-column:1/-1}}
 .sec{scroll-margin-top:96px}
 .sec h2{font-size:19px;font-style:italic;font-weight:700;margin:0 0 16px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
@@ -138,7 +139,34 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .step input{border:0;background:none;text-align:center;font-size:19px;font-weight:650;min-width:0;width:100%;padding:0;min-height:var(--tap);font-variant-numeric:tabular-nums}
 .step input:focus-visible{outline-offset:-3px}
 .item .del{margin-top:2px}
-.item>.row2{margin-bottom:14px}.item>.row2 .btn{padding:0 8px;gap:8px;white-space:nowrap}
+/* чеки: строка «№ · ФД · дата · сумма», поля раскрываются по касанию, открыт один */
+.ckbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.ckbar .btn{padding:0 10px;white-space:nowrap}
+@media(max-width:560px){.ckbar{grid-template-columns:1fr 1fr}.ckbar>:first-child{grid-column:1/-1}}
+.ckl{border-top:1.5px solid var(--ink)}
+.ckl>.ckb:empty::before{content:"Чеков пока нет. Наведите камеру на QR-код чека или добавьте вручную.";display:block;padding:14px 2px;color:var(--mut)}
+.ck{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0;margin:0}
+.ck:not(.open)>:not(.ck-sum){display:none}
+.ck.open{background:var(--surf);padding:0 14px 6px;margin:0 -14px;border:1px solid var(--line);border-top:0}
+.ck-sum{display:flex;align-items:center;gap:14px;width:100%;min-height:var(--tap);padding:8px 2px;background:none;border:0;text-align:left;cursor:pointer;font-variant-numeric:tabular-nums}
+.ck.open>.ck-sum{margin-bottom:10px;border-bottom:1px dashed var(--line)}
+.ck-sum:hover{background:var(--acc-soft)}
+.ck-n{min-width:2ch;color:var(--mut);font-style:italic;font-weight:600}
+.ck-fd{flex:1;min-width:0}.ck-fd b{display:block;font-weight:650}.ck-fd small{display:block;color:var(--mut);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ck-s{font-weight:650;white-space:nowrap}
+.ck-sum .ic{transition:transform .2s var(--ease);color:var(--mut)}.ck.open .ck-sum .ic{transform:rotate(90deg)}
+.ck:has(.bad) .ck-fd b,.ck-fd b.no{color:var(--bad)}
+.ck.new>.ck-sum{animation:flash 1.2s var(--ease)}
+@keyframes flash{from{background:var(--acc-soft)}}
+.ckl .tot{margin-top:14px}
+
+/* сканер QR: живая камера, кадр-прицел, чеки добавляются подряд */
+#scan{position:fixed;inset:0;z-index:15;background:#000;display:flex;flex-direction:column}
+#scanV{flex:1;min-height:0;width:100%;object-fit:cover}
+.scan-win{position:absolute;left:50%;top:calc(50% - 60px);width:min(70vw,60vh);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:6px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45);pointer-events:none}
+.scan-ui{background:var(--paper);border-top:2px solid var(--ink);padding:12px calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+#scanMsg{margin:0 0 10px;font-weight:600;min-height:2.9em}
+.scan-ui .row2{max-width:640px}
 #exp .grid,#hoz .grid{grid-auto-flow:dense} /* «Подписи» встают рядом с «Отчётом», на телефоне остаются после чеков */
 .tot{margin:16px 2px 0;font-size:19px}
 
@@ -154,10 +182,13 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 /* списки */
 .list .it{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line2)}
 .list .it>div{flex:1;min-width:0}
+.list .it>.ic{color:var(--mut)}
+@media(max-width:560px){#hList .it{flex-wrap:wrap}#hList .it>div{flex-basis:calc(100% - 40px)}#hList .it>.btn:first-of-type{margin-left:34px}} /* на телефоне кнопки строкой ниже, текст во всю ширину */
 .list b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .list small{color:var(--mut);display:block;font-size:14px}
 .list .btn{min-height:48px;padding:0 14px}
 .empty{color:var(--mut);padding:8px 0}
+.sv{min-height:44px;padding:0 4px;margin-top:4px;border:0;background:none;color:var(--acc);font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 
 /* основная надпись: нижняя панель; на планшете показывает заполняемые графы, на телефоне — номер листа и ход */
 .bar{position:fixed;left:var(--fL);right:var(--fR);bottom:var(--fB);z-index:4;background:var(--paper);border-top:2px solid var(--ink);padding-bottom:2px}
@@ -231,8 +262,9 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></symbol>
 <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h3l2 11h10l2-8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
 <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3 3 0 0 0-5 1.5c0 3 5 1.5 5 4.500a3 3 0 0 1-5 1.500M12 6.500v1.500M12 16v1.500"/></symbol>
-<symbol id="i-cam"viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></symbol>
-<symbol id="i-new"viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
+<symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></symbol>
+<symbol id="i-new" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M13 12v6M10 15h6"/></symbol>
 </defs></svg>
 
 <header>
@@ -276,7 +308,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <div class="fld"><label for="serial">Заводской номер</label><div class="inw m"><input id="serial" autocomplete="off" enterkeyhint="next"></div></div>
     <div class="fld"><label for="contract">Договор или контракт</label><div class="inw m"><input id="contract" list="dl-contract" autocomplete="off" enterkeyhint="done"></div></div>
     <datalist id="dl-customer"></datalist><datalist id="dl-address"></datalist>
-    <datalist id="dl-machine"></datalist><datalist id="dl-contract"></datalist>
+    <datalist id="dl-machine"></datalist><datalist id="dl-contract"></datalist><datalist id="dl-staff"></datalist>
   </div>
 
   <div class="sec" data-s="work">
@@ -320,10 +352,10 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 
   <div class="sec full">
     <h2>Чеки</h2>
-    <div id="checks"></div>
-    <button class="btn w" id="addCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить чек</button>
-    <p class="tot">Итого: <b id="expTot">0 руб. 00 коп.</b></p>
-    <input type="file" id="qrFile" accept="image/*" class="hide">
+    <div class="ckbar"><button class="btn" type="button" data-scan="checks"><svg class="ic"><use href="#i-cam"/></svg>Сканировать QR</button><button class="btn" type="button" data-gal="checks"><svg class="ic"><use href="#i-img"/></svg>Из галереи</button><button class="btn" id="addCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Вручную</button></div>
+    <div class="fld ckl"><div class="ckb" id="checks"></div><p class="err">Добавьте хотя бы один чек</p>
+    <p class="tot">Итого: <b id="expTot">0 руб. 00 коп.</b></p></div>
+    <input type="file" id="qrFile" accept="image/*" multiple class="hide">
     <input type="file" id="qrCam" accept="image/*" capture="environment" class="hide">
   </div>
 
@@ -332,10 +364,10 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <div class="fld" data-k="resp"><span class="lbl">Ответственный</span><div class="chips" id="resp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
     <div class="fld"><label for="respPos">Должность ответственного</label><div class="inw"><input id="respPos" data-set="respPos" autocomplete="off"></div></div>
     <div class="fld"><label for="apprPos">Утверждает: должность</label><div class="inw"><input id="apprPos" data-set="apprPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="apprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="apprName" data-set="apprName" autocomplete="off"></div></div>
+    <div class="fld"><label for="apprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="apprName" list="dl-staff" data-pos="apprPos" data-set="apprName" autocomplete="off"></div></div>
     <div class="fld"><label for="dirPos">К оплате: должность</label><div class="inw"><input id="dirPos" data-set="dirPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="dirName">К оплате: Ф. И. О.</label><div class="inw"><input id="dirName" data-set="dirName" autocomplete="off"></div></div>
-    <p class="hint">Подписи и подразделение запоминаются для следующих отчётов.</p>
+    <div class="fld"><label for="dirName">К оплате: Ф. И. О.</label><div class="inw"><input id="dirName" list="dl-staff" data-pos="dirPos" data-set="dirName" autocomplete="off"></div></div>
+    <p class="hint">Подписи и подразделение запоминаются для следующих отчётов. Ф. И. О. из списка сотрудников подставит должность.</p>
   </div>
  </div>
 </section>
@@ -352,19 +384,19 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 
   <div class="sec full">
     <h2>Чеки</h2>
-    <div id="hChecks"></div>
-    <button class="btn w" id="hAddCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить чек</button>
-    <p class="tot">Итого: <b id="hTot">0 руб. 00 коп.</b></p>
+    <div class="ckbar"><button class="btn" type="button" data-scan="hChecks"><svg class="ic"><use href="#i-cam"/></svg>Сканировать QR</button><button class="btn" type="button" data-gal="hChecks"><svg class="ic"><use href="#i-img"/></svg>Из галереи</button><button class="btn" id="hAddCheck" type="button"><svg class="ic"><use href="#i-plus"/></svg>Вручную</button></div>
+    <div class="fld ckl"><div class="ckb" id="hChecks"></div><p class="err">Добавьте хотя бы один чек</p>
+    <p class="tot">Итого: <b id="hTot">0 руб. 00 коп.</b></p></div>
   </div>
 
   <div class="sec">
     <h2>Подписи</h2>
     <div class="fld"><label for="hApprPos">Утверждает: должность</label><div class="inw"><input id="hApprPos" data-set="hozApprPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="hApprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="hApprName" data-set="hozApprName" autocomplete="off"></div></div>
+    <div class="fld"><label for="hApprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="hApprName" list="dl-staff" data-pos="hApprPos" data-set="hozApprName" autocomplete="off"></div></div>
     <div class="fld" data-k="hresp"><span class="lbl">Ответственный</span><div class="chips" id="hResp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
     <div class="fld"><label for="hRespPos">Должность ответственного</label><div class="inw"><input id="hRespPos" data-set="respPos" autocomplete="off"></div></div>
     <div class="fld"><label for="hDate">Дата отчёта</label><input class="in" type="date" id="hDate" style="max-width:320px"></div>
-    <p class="hint">Кто утверждает и подразделение запоминаются для следующих отчётов.</p>
+    <p class="hint">Кто утверждает и подразделение запоминаются для следующих отчётов. Ф. И. О. из списка сотрудников подставит должность.</p>
   </div>
  </div>
 </section>
@@ -372,7 +404,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 <section class="tab" id="staff">
  <div class="grid">
   <div class="sec">
-    <h2>Новый сотрудник</h2>
+    <h2>Новый сотрудник или подписант</h2>
     <div class="fld"><label for="sName">Ф. И. О. как в подписи</label><div class="inw"><input id="sName" autocomplete="off" placeholder="Иванов И. И."></div></div>
     <div class="fld"><label for="sPos">Должность</label><div class="inw"><input id="sPos" value="сервисный инженер" autocomplete="off"></div></div>
     <button class="btn p w" id="sAdd" type="button"><svg class="ic"><use href="#i-plus"/></svg>Добавить в список</button>
@@ -444,6 +476,14 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <button class="btn p" id="pvPdf" type="button"><svg class="ic"><use href="#i-print"/></svg>PDF</button>
   </div></div>
   <div id="pvpage"></div>
+</div>
+<div id="scan" class="hide" role="dialog" aria-modal="true" aria-label="Сканирование QR-кода чека">
+  <video id="scanV" playsinline muted></video>
+  <div class="scan-win"></div>
+  <div class="scan-ui"><p id="scanMsg" role="status"></p><div class="row2">
+    <button class="btn hide" id="scanTorch" type="button">Фонарик</button>
+    <button class="btn p" id="scanDone" type="button">Готово</button>
+  </div></div>
 </div>
 <div id="toast" role="status"></div>
 
