@@ -40,8 +40,9 @@ input,textarea,button,select{font:inherit;color:inherit;caret-color:var(--acc)}
 
 /* шапка и вкладки */
 header{position:sticky;top:var(--fT);z-index:5;background:var(--paper);margin:var(--fT) var(--fR) 0 var(--fL);
-  border-bottom:2px solid var(--ink);display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 24px;padding:0 16px}
-header h1{font-size:18px;font-style:italic;font-weight:700;margin:0;padding:14px 0 6px;flex:1 1 auto}
+  border-bottom:2px solid var(--ink);display:flex;flex-wrap:wrap;align-items:flex-end;padding:0 16px}
+/* отступ вместо gap: на iPad вкладки уезжали за рамку примерно на ширину gap (похоже, Safari не вычитал его из места под заголовок) */
+header h1{font-size:18px;font-style:italic;font-weight:700;margin:0 24px 0 0;padding:14px 0 6px;flex:1 1 auto}
 nav{display:flex;gap:4px;flex:0 1 auto}
 nav button{min-height:48px;padding:0 20px;background:none;border:0;border-bottom:4px solid transparent;font-weight:600;color:var(--mut);cursor:pointer}
 nav button.on{color:var(--ink);border-color:var(--ink)}
