@@ -225,8 +225,6 @@ function renderStaff() {
   staffChips($("engineer"), "eng", engIdx, (i) => { engIdx = i; persist(); });
   staffChips($("resp"), "resp", respIdx, (i) => { respIdx = i; persistExp(); });
   staffChips($("hResp"), "hresp", hrespIdx, (i) => { hrespIdx = i; persistHoz(); });
-  $("dl-staff").innerHTML = "";
-  staff.forEach((s) => { const o = document.createElement("option"); o.value = s.name; o.label = s.pos; $("dl-staff").appendChild(o); });
   document.querySelectorAll("[data-pos]").forEach(svBtn);
   $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
   staff.forEach((s, i) => {
@@ -234,7 +232,9 @@ function renderStaff() {
     r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = [s.pos, s.sign && "подписант"].filter(Boolean).join(" · ");
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
     x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = engAt(-1); save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
-    r.appendChild(x); $("sList").appendChild(r);
+    const t = mk(`<button class="btn"></button>`); t.textContent = s.sign ? "В инженеры" : "В подписанты";
+    t.onclick = () => { s.sign = !s.sign; save(KEY.staff, staff); engIdx = engAt(engIdx); respIdx = engAt(respIdx); hrespIdx = engAt(hrespIdx); renderStaff(); persist(); persistExp(); persistHoz(); };
+    r.append(t, x); $("sList").appendChild(r);
   });
 }
 $("sAdd").onclick = () => {
@@ -268,6 +268,25 @@ document.querySelectorAll("[data-pos]").forEach((i) => i.addEventListener("input
   if (p && p.pos && pos.value !== p.pos) { pos.value = p.pos; pos.dispatchEvent(new Event("input", { bubbles: true })); }
   svBtn(i);
 }));
+// выпадающий список вместо datalist: на Android datalist уходит в строку подсказок клавиатуры, а не списком под полем
+document.querySelectorAll("[data-pos]").forEach((i) => {
+  const b = mk(`<button type="button" class="dd" aria-label="Выбрать из списка">${ic("next")}</button>`), menu = mk(`<div class="menu hide"></div>`);
+  b.onclick = () => {
+    const was = menu.classList.contains("hide");
+    document.querySelectorAll(".menu").forEach((m) => m.classList.add("hide"));
+    if (!was) return;
+    menu.innerHTML = staff.length ? "" : '<p class="empty" style="padding:10px 14px">Список сотрудников пуст</p>';
+    staff.forEach((s) => {
+      const o = mk(`<button type="button"><b></b><small></small></button>`);
+      o.querySelector("b").textContent = s.name; o.querySelector("small").textContent = s.pos;
+      o.onclick = () => { i.value = s.name; i.dispatchEvent(new Event("input", { bubbles: true })); menu.classList.add("hide"); };
+      menu.appendChild(o);
+    });
+    menu.classList.remove("hide");
+  };
+  i.parentElement.append(b, menu);
+});
+document.addEventListener("click", (e) => { if (!e.target.closest(".dd,.menu")) document.querySelectorAll(".menu").forEach((m) => m.classList.add("hide")); });
 showSettings();
 
 // ---------- архив ----------

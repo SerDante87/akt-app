@@ -98,6 +98,14 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .inw>textarea{min-height:132px;resize:vertical;line-height:1.5}
 .inw.m>input,.inw.m>textarea{padding-right:64px}
 .mic{position:absolute;right:6px;top:6px;width:44px;height:44px;border-radius:50%;border:0;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;cursor:pointer}
+/* выпадающий список сотрудников у полей «Ф. И. О.» подписантов */
+.inw:has(.dd)>input{padding-right:60px}
+.dd{position:absolute;right:6px;top:6px;width:44px;height:44px;border-radius:50%;border:0;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;cursor:pointer}
+.dd .ic{transform:rotate(90deg)}
+.menu{position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:3;max-height:260px;overflow:auto;background:var(--surf);border:1.5px solid var(--ink);border-radius:var(--r);box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.menu button{display:block;width:100%;min-height:52px;padding:8px 14px;border:0;border-bottom:1px solid var(--line2);background:none;text-align:left;cursor:pointer}
+.menu button:last-child{border-bottom:0}.menu button:active{background:var(--acc-soft)}
+.menu small{display:block;color:var(--mut);font-size:13px}
 .mic.rec{background:var(--bad);color:#fff;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--bad) 25%,transparent)}}
 .hint{font-size:14px;color:var(--mut);margin:6px 2px 0}
@@ -308,7 +316,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <div class="fld"><label for="serial">Заводской номер</label><div class="inw m"><input id="serial" autocomplete="off" enterkeyhint="next"></div></div>
     <div class="fld"><label for="contract">Договор или контракт</label><div class="inw m"><input id="contract" list="dl-contract" autocomplete="off" enterkeyhint="done"></div></div>
     <datalist id="dl-customer"></datalist><datalist id="dl-address"></datalist>
-    <datalist id="dl-machine"></datalist><datalist id="dl-contract"></datalist><datalist id="dl-staff"></datalist>
+    <datalist id="dl-machine"></datalist><datalist id="dl-contract"></datalist>
   </div>
 
   <div class="sec" data-s="work">
@@ -364,9 +372,9 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
     <div class="fld" data-k="resp"><span class="lbl">Ответственный</span><div class="chips" id="resp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
     <div class="fld"><label for="respPos">Должность ответственного</label><div class="inw"><input id="respPos" data-set="respPos" autocomplete="off"></div></div>
     <div class="fld"><label for="apprPos">Утверждает: должность</label><div class="inw"><input id="apprPos" data-set="apprPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="apprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="apprName" list="dl-staff" data-pos="apprPos" data-set="apprName" autocomplete="off"></div></div>
+    <div class="fld"><label for="apprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="apprName" data-pos="apprPos" data-set="apprName" autocomplete="off"></div></div>
     <div class="fld"><label for="dirPos">К оплате: должность</label><div class="inw"><input id="dirPos" data-set="dirPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="dirName">К оплате: Ф. И. О.</label><div class="inw"><input id="dirName" list="dl-staff" data-pos="dirPos" data-set="dirName" autocomplete="off"></div></div>
+    <div class="fld"><label for="dirName">К оплате: Ф. И. О.</label><div class="inw"><input id="dirName" data-pos="dirPos" data-set="dirName" autocomplete="off"></div></div>
     <p class="hint">Подписи и подразделение запоминаются для следующих отчётов. Ф. И. О. из списка сотрудников подставит должность.</p>
   </div>
  </div>
@@ -392,7 +400,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   <div class="sec">
     <h2>Подписи</h2>
     <div class="fld"><label for="hApprPos">Утверждает: должность</label><div class="inw"><input id="hApprPos" data-set="hozApprPos" autocomplete="off"></div></div>
-    <div class="fld"><label for="hApprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="hApprName" list="dl-staff" data-pos="hApprPos" data-set="hozApprName" autocomplete="off"></div></div>
+    <div class="fld"><label for="hApprName">Утверждает: Ф. И. О.</label><div class="inw"><input id="hApprName" data-pos="hApprPos" data-set="hozApprName" autocomplete="off"></div></div>
     <div class="fld" data-k="hresp"><span class="lbl">Ответственный</span><div class="chips" id="hResp"></div><p class="err">Выберите сотрудника (добавьте его на вкладке «Сотрудники»)</p></div>
     <div class="fld"><label for="hRespPos">Должность ответственного</label><div class="inw"><input id="hRespPos" data-set="respPos" autocomplete="off"></div></div>
     <div class="fld"><label for="hDate">Дата отчёта</label><input class="in" type="date" id="hDate" style="max-width:320px"></div>
