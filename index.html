@@ -243,6 +243,23 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 #pvpage .docx-wrapper{background:none;padding:0}
 #pvpage section.docx{margin:0 auto;background:#fff;color:#000;box-shadow:0 6px 24px rgba(0,0,0,.4)}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--barh) + var(--fB) + 14px);background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:4px;z-index:20;display:none;font-weight:600;max-width:90vw}
+/* Заставка: три бланка раскладываются веером и быстро заполняются, затем собираются в один.
+   Покой = конечный кадр, ключевые кадры ведут из пустого: при reduce видно готовое состояние. */
+#splash{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:var(--paper);animation:sp-out .25s 1.02s ease-in both}
+#splash svg{width:min(76vw,340px);overflow:visible;stroke:var(--acc);fill:none;stroke-linecap:round;stroke-linejoin:round}
+#splash .pg{fill:var(--surf);stroke-width:1.15}
+#splash .s{transform-box:fill-box;transform-origin:50% 100%}
+#splash .sl{transform:rotate(-7deg);animation:sp-l 1.08s var(--ease) both}
+#splash .sr{transform:rotate(7deg);animation:sp-r 1.08s var(--ease) both}
+#splash .sc{animation:sp-c .3s var(--ease) both}
+#splash .f{stroke-width:.9;stroke-dasharray:1 2;animation:sp-f .2s var(--d) var(--ease) both}
+#splash .f.b{stroke-width:1.2}
+#splash .ok{stroke-width:1.4;animation-duration:.26s}
+@keyframes sp-f{from{stroke-dashoffset:1.01}}
+@keyframes sp-c{from{opacity:0;transform:scale(.9)}}
+@keyframes sp-l{0%{opacity:0;transform:translateX(18px)}24%,78%{opacity:1;transform:rotate(-7deg)}100%{opacity:0;transform:translateX(18px)}}
+@keyframes sp-r{0%{opacity:0;transform:translateX(-18px)}24%,78%{opacity:1;transform:rotate(7deg)}100%{opacity:0;transform:translateX(-18px)}}
+@keyframes sp-out{to{opacity:0;visibility:hidden}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media print{
   @page{size:A4;margin:0}
@@ -257,6 +274,22 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 </style>
 </head>
 <body class="home">
+<div id="splash" aria-hidden="true"><svg viewBox="0 2 60 20">
+ <defs><path id="spPg" d="M9.728 3H7.5a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h9a2.25 2.25 0 0 0 2.25-2.25V12C18.75 8.36 13.418 3 9.728 3zM9.728 3C10.971 3 12 4.007 12 5.25V7.5a2.25 2.25 0 0 0 2.25 2.25h2.25A2.25 2.25 0 0 1 18.75 12"/></defs>
+ <g><g class="s sl"><use href="#spPg" class="pg"/>
+  <path class="f" pathLength="1" style="--d:.26s" d="M7.75 12.25H12"/><path class="f" pathLength="1" style="--d:.3s" d="M14.5 12.25h1.75"/>
+  <path class="f" pathLength="1" style="--d:.34s" d="M7.75 14.75H12"/><path class="f" pathLength="1" style="--d:.38s" d="M14.5 14.75h1.75"/>
+  <path class="f b" pathLength="1" style="--d:.44s" d="M7.75 17.75H10"/><path class="f b" pathLength="1" style="--d:.48s" d="M13 17.75h3.25"/></g></g>
+ <g transform="translate(36 0)"><g class="s sr"><use href="#spPg" class="pg"/>
+  <path class="f" pathLength="1" style="--d:.2s" d="M7.75 12H16.25"/><path class="f" pathLength="1" style="--d:.26s" d="M11 12V18.75"/>
+  <path class="f" pathLength="1" style="--d:.32s" d="M8 14.5h1.5"/><path class="f b" pathLength="1" style="--d:.36s" d="M12.5 14.5h3.25"/>
+  <path class="f" pathLength="1" style="--d:.42s" d="M8 17.25h1.5"/><path class="f b" pathLength="1" style="--d:.46s" d="M12.5 17.25h2.25"/></g></g>
+ <g transform="translate(18 0)"><g class="s sc"><use href="#spPg" class="pg"/>
+  <path class="f" pathLength="1" style="--d:.3s" d="M7.75 12H16.25"/><path class="f" pathLength="1" style="--d:.4s" d="M7.75 14.5H11"/>
+  <path class="f ok" pathLength="1" style="--d:.52s" d="M12.5 16.742l1.039 1.181c.095.109.267.1.351-.016L16 15"/></g></g>
+</svg></div>
+<script>(function(){var s=document.getElementById("splash");function x(){if(s){s.remove();s=null}}
+setTimeout(x,matchMedia("(prefers-reduced-motion:reduce)").matches?450:1300);s.addEventListener("pointerdown",x)})()</script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
