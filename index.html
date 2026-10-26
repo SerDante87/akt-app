@@ -194,6 +194,9 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 .list .it>.ic{color:var(--mut)}
 @media(max-width:560px){#hList .it{flex-wrap:wrap}#hList .it>div{flex-basis:calc(100% - 40px)}#hList .it>.btn:first-of-type{margin-left:34px}} /* на телефоне кнопки строкой ниже, текст во всю ширину */
 .list b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* заказчик — то, по чему ищут акт глазами: две строки вместо обрезки; архив шире резервной копии */
+#hList b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+@media(min-width:900px){#arch .grid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}}
 .list small{color:var(--mut);display:block;font-size:14px}
 .list .btn{min-height:48px;padding:0 14px}
 .empty{color:var(--mut);padding:8px 0}
