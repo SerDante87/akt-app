@@ -14,6 +14,16 @@ const SET_DEF = { manufacturer: "ООО «Вебер Комеханикс»", de
   respPos: "", apprPos: "Руководитель направления", apprName: "", dirPos: "Технический директор", dirName: "",
   hozApprPos: "Руководитель службы внутреннего контроля и аудита", hozApprName: "" };
 let settings = { ...SET_DEF, ...load(KEY.set, {}) };
+// подписанты (утверждает, к оплате) в общем списке с пометкой sign: только в выпадающем списке Ф. И. О., не среди ответственных
+// до akt-v15 пометки не было: подписантом считаем того, кто стоит в подписях настроек
+function markSigners() {
+  const names = [settings.apprName, settings.dirName, settings.hozApprName].map((n) => n.trim()).filter(Boolean);
+  staff.forEach((s) => { if (!("sign" in s)) s.sign = names.includes(s.name); });
+  save(KEY.staff, staff);
+}
+markSigners();
+const hasEng = () => staff.some((s) => !s.sign);
+const engAt = (i) => (staff[i] && !staff[i].sign ? i : staff.findIndex((s) => !s.sign)); // -1, если инженеров нет
 let curId = null, engIdx = 0, curExpId = null, respIdx = 0, curHozId = null, hrespIdx = 0;
 
 function toast(t) {
@@ -157,7 +167,7 @@ function fill(d) {
   const objs = (a) => (a || []).filter((r) => r && !Array.isArray(r));
   objs(d._parts).forEach(addPart); objs(d._labor).forEach(addLabor);
   $("partsOn").checked = !!objs(d._parts).length;
-  engIdx = d._eng >= 0 && d._eng < staff.length ? d._eng : 0;
+  engIdx = engAt(d._eng);
   renderStaff(); sync();
 }
 
@@ -195,14 +205,15 @@ function validate(d) {
       mark(g("eng"), !(num(g("eng").value) >= 1));
     });
   }
-  if (!staff.length) mark($("engineer"), true);
+  if (!hasEng()) mark($("engineer"), true);
   return bad;
 }
 
 // ---------- сотрудники ----------
 function staffChips(box, name, cur, pick) {
-  box.innerHTML = staff.length ? "" : '<span class="empty">Список пуст</span>';
+  box.innerHTML = hasEng() ? "" : '<span class="empty">Список пуст</span>';
   staff.forEach((s, i) => {
+    if (s.sign) return;
     const c = mk(`<label class="chip"><input type="radio" name="${name}" value="${i}"><span class="dot"></span><span><span class="n"></span><small></small></span></label>`);
     c.querySelector(".n").textContent = s.name; c.querySelector("small").textContent = s.pos;
     const r = c.querySelector("input"); r.checked = i === cur;
@@ -220,16 +231,16 @@ function renderStaff() {
   $("sList").innerHTML = staff.length ? "" : '<p class="empty">Список пуст</p>';
   staff.forEach((s, i) => {
     const r = mk(`<div class="it"><div><b></b><small></small></div></div>`);
-    r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = s.pos;
+    r.querySelector("b").textContent = s.name; r.querySelector("small").textContent = [s.pos, s.sign && "подписант"].filter(Boolean).join(" · ");
     const x = mk(`<button class="btn d" aria-label="Удалить">${ic("trash")}</button>`);
-    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = 0; save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
+    x.onclick = () => { if (confirm(`Удалить «${s.name}»?`)) { staff.splice(i, 1); engIdx = respIdx = hrespIdx = engAt(-1); save(KEY.staff, staff); renderStaff(); persist(); persistExp(); persistHoz(); } };
     r.appendChild(x); $("sList").appendChild(r);
   });
 }
 $("sAdd").onclick = () => {
   const name = $("sName").value.trim(), pos = $("sPos").value.trim() || "сервисный инженер";
   if (!name) return toast("Введите Ф. И. О.");
-  staff.push({ name, pos }); save(KEY.staff, staff); $("sName").value = ""; renderStaff(); toast("Сотрудник добавлен");
+  staff.push({ name, pos, sign: $("sSign").checked }); save(KEY.staff, staff); $("sName").value = ""; renderStaff(); toast("Сотрудник добавлен");
 };
 // поля с data-set хранятся в настройках и переживают «Новый»: производитель, подразделение, подписи отчёта
 const showSettings = () => document.querySelectorAll("[data-set]").forEach((i) => (i.value = settings[i.dataset.set] ?? ""));
@@ -245,7 +256,7 @@ function svBtn(i) {
   if (!b) {
     b = mk(`<button type="button" class="sv">${ic("plus")}Запомнить в списке сотрудников</button>`);
     b.onclick = () => {
-      staff.push({ name: i.value.trim(), pos: $(i.dataset.pos).value.trim() }); save(KEY.staff, staff);
+      staff.push({ name: i.value.trim(), pos: $(i.dataset.pos).value.trim(), sign: true }); save(KEY.staff, staff);
       renderStaff(); toast("Добавлен в список сотрудников");
     };
     i.closest(".fld").appendChild(b);
@@ -306,7 +317,7 @@ $("impFile").onchange = async (e) => {
     if (!confirm("Заменить текущие данные резервной копией?")) return;
     staff = j.staff || []; hist = j.hist || []; settings = { ...SET_DEF, ...(j.settings || settings) };
     save(KEY.staff, staff); save(KEY.hist, hist); save(KEY.set, settings);
-    showSettings(); engIdx = respIdx = hrespIdx = 0; renderStaff(); renderHist(); toast("Импортировано");
+    markSigners(); showSettings(); engIdx = respIdx = hrespIdx = engAt(-1); renderStaff(); renderHist(); toast("Импортировано");
   } catch { toast("Не удалось прочитать файл"); }
   e.target.value = "";
 };
@@ -383,7 +394,7 @@ const SEC_DONE = {
   work: () => $("works").value.trim(),
   parts: () => !$("partsOn").checked || [...$("parts").querySelectorAll("[data-f=name]")].some((i) => i.value.trim()),
   labor: () => $("labor").children.length && [...$("labor").querySelectorAll("[data-f=work]")].every((i) => num(i.value) > 0),
-  sign: () => staff.length > 0,
+  sign: hasEng,
 };
 function showStep(i) { step = i; refreshSteps(); window.scrollTo(0, 0); }
 function revealEl(el) { const j = secs().findIndex((s) => s.contains(el)); if (j >= 0 && narrow.matches) showStep(j); }
@@ -476,7 +487,7 @@ function fillExp(d) {
   $("goal").value = d.goal || "";
   $("checks").innerHTML = "";
   (d._checks || []).forEach((c) => addCheck(c));
-  respIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
+  respIdx = engAt(d._resp);
   renderStaff(); refreshExp();
 }
 function persistExp() { save(KEY.expDraft, { ...collectExp(), _id: curExpId, _pv: pvOpen("exp") }); }
@@ -493,7 +504,7 @@ function validateExp(d) {
   const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
   mark($("goal"), !d.goal);
   markChecks($("checks"), mark);
-  if (!staff.length) mark($("resp"), true);
+  if (!hasEng()) mark($("resp"), true);
   return bad;
 }
 $("expNew").onclick = () => {
@@ -520,7 +531,7 @@ function fillHoz(d) {
   $("hDate").value = d._iso || todayISO();
   $("hChecks").innerHTML = "";
   (d._checks || []).forEach((c) => addHozCheck(c));
-  hrespIdx = d._resp >= 0 && d._resp < staff.length ? d._resp : 0;
+  hrespIdx = engAt(d._resp);
   renderStaff(); refreshHoz();
 }
 function persistHoz() { save(KEY.hozDraft, { ...collectHoz(), _id: curHozId, _pv: pvOpen("hoz") }); }
@@ -538,7 +549,7 @@ function validateHoz(d) {
   const mark = (el, cond) => { if (cond) { const f = el.closest(".fld") || el; f.classList.add("bad"); bad.push(f); } };
   mark($("hGoal"), !lines($("hGoal").value).length);
   markChecks($("hChecks"), mark);
-  if (!staff.length) mark($("hResp"), true);
+  if (!hasEng()) mark($("hResp"), true);
   return bad;
 }
 $("hozNew").onclick = () => {
