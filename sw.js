@@ -1,4 +1,4 @@
-const V = "akt-v22";
+const V = "akt-v23";
 const FILES = ["./", "index.html", "app.js", "gen.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
   "lib/docx.js", "lib/jszip.min.js", "lib/docx-preview.js", "lib/html2canvas.min.js", "lib/jspdf.umd.min.js", "lib/jsQR.js"];
 // cache: "reload" — мимо HTTP-кэша GitHub Pages, иначе в новую версию попадут старые файлы

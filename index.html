@@ -24,6 +24,8 @@
   --barh:82px;
 }
 @media (max-width:819px){:root{--barh:142px}}
+/* приложение с экрана «Домой»: размытая подложка строки состояния iPad ниже safe-area и мылила верх рамки */
+@media (display-mode:standalone){:root{--fT:calc(20px + env(safe-area-inset-top))}}
 @media (prefers-color-scheme:dark){:root{
   --paper:#0f2238;--surf:#0b1a2c;--ink:#e9f1fb;--mut:#a9bdd3;--line:#6f8dae;--line2:#26425f;
   --acc:#9cc8ff;--acc-ink:#0b1b2e;--acc-soft:#183654;--bad:#ff9d94;--bad-soft:#3a2026}}
