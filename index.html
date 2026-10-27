@@ -253,8 +253,8 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 /* Заставка: стопка бланков расходится веером, бланки заполняются, затем по одному
    ложатся обратно в центр — подпись, удар печати. Покой = конечный кадр (стопка подписана),
    ключевые кадры ведут из начала: при reduce видно готовое состояние. */
-#splash{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:var(--paper);animation:sp-out .25s 2s ease-in both}
-#splash svg{width:min(76vw,340px);overflow:visible;stroke:var(--acc);fill:none;stroke-linecap:round;stroke-linejoin:round;animation:sp-in .18s var(--ease) both}
+#splash{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:var(--paper);animation:sp-out .25s 3.05s ease-in both}
+#splash svg{width:min(76vw,420px);overflow:visible;stroke:var(--acc);fill:none;stroke-linecap:round;stroke-linejoin:round;animation:sp-in .18s var(--ease) both}
 #splash .pg{fill:var(--surf);stroke-width:1.15}
 #splash .s{transform-box:fill-box;transform-origin:50% 100%}
 /* второе движение без backwards: до своего старта не перебивает веер */
@@ -273,6 +273,21 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 /* печать: падает с высоты, бьёт с недожатием и встаёт */
 @keyframes sp-st{0%{opacity:0;transform:scale(1.9)}70%{opacity:.9;transform:scale(.9);animation-timing-function:var(--ease)}100%{opacity:.85;transform:none}}
 @keyframes sp-out{to{opacity:0;visibility:hidden}}
+/* Название после последней печати: стопка уходит вверх, размерная линия раскрывается из центра,
+   название выходит из-под линии вверх, подпись — вниз. Чёткие маски, без размытия. */
+#splash .box{position:relative;transform:translateY(-46px);animation:sp-up .45s 1.9s var(--ease) both}
+#splash .brand{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);width:max-content;display:grid;justify-items:center;white-space:nowrap}
+#splash .nm{display:flex;gap:.32em;overflow:hidden;padding:0 .04em;font-size:clamp(18px,5.4vw,38px);font-weight:800;letter-spacing:.05em;line-height:1.15;color:var(--ink)}
+#splash .nm span{display:block;animation:sp-rise .42s var(--d) cubic-bezier(.2,.9,.1,1) both}
+#splash .dim{position:relative;width:100%;height:1.5px;margin:7px 0 6px;background:var(--acc);animation:sp-dim .36s 2.02s var(--ease) both}
+#splash .dim::before,#splash .dim::after{content:"";position:absolute;top:-4px;width:1.5px;height:9.5px;background:var(--acc)}
+#splash .dim::before{left:0}#splash .dim::after{right:0}
+#splash .tm{overflow:hidden;font-size:clamp(10px,2.9vw,15px);font-weight:650;letter-spacing:.34em;padding-left:.34em;color:var(--acc)}
+#splash .tm span{display:block;animation:sp-drop .4s 2.3s var(--ease) both}
+@keyframes sp-up{from{transform:none}}
+@keyframes sp-dim{from{transform:scaleX(0)}}
+@keyframes sp-rise{from{transform:translateY(105%)}}
+@keyframes sp-drop{from{transform:translateY(-105%);letter-spacing:.7em}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media print{
   @page{size:A4;margin:0}
@@ -287,7 +302,7 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
 </style>
 </head>
 <body class="home">
-<div id="splash" aria-hidden="true"><svg viewBox="0 2 60 20">
+<div id="splash" aria-hidden="true"><div class="box"><svg viewBox="0 2 60 20">
  <defs><path id="spPg" d="M9.728 3H7.5a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h9a2.25 2.25 0 0 0 2.25-2.25V12C18.75 8.36 13.418 3 9.728 3zM9.728 3C10.971 3 12 4.007 12 5.25V7.5a2.25 2.25 0 0 0 2.25 2.25h2.25A2.25 2.25 0 0 1 18.75 12"/>
   <path id="spSg" pathLength="1" d="M7.7 18.6c.5-1.5 1.1-2.3 1.4-1.6.3.8-.7 2.2-.2 2.1.6-.2 1-1.6 1.5-1.3.4.3-.1 1.2.3 1.1.4-.1.6-.6 1.2-.7"/>
   <g id="spSt"><circle cx="14.3" cy="17.9" r="2.5" stroke-width=".55"/><circle cx="14.3" cy="17.9" r="1.75" stroke-width=".32" stroke-dasharray=".34 .3"/></g></defs>
@@ -305,9 +320,11 @@ main{max-width:1240px;margin:0 auto;padding:20px calc(var(--fR) + 16px) 0 calc(v
   <path class="f" pathLength="1" style="--d:.35s" d="M7.75 11H16.25"/><path class="f" pathLength="1" style="--d:.43s" d="M7.75 13.25H14"/>
   <path class="f" pathLength="1" style="--d:.51s" d="M7.75 15.25H11"/>
   <use href="#spSg" class="f sg" style="--d:1.54s"/><use href="#spSt" class="seal" style="--d:1.7s"/></g></g>
-</svg></div>
+</svg>
+ <div class="brand"><div class="nm"><span style="--d:2.1s">ВЕБЕР</span><span style="--d:2.17s">КОМЕХАНИКС</span></div><i class="dim"></i><div class="tm"><span>КОМАНДА ЗУБООБРАБОТКА</span></div></div>
+</div></div>
 <script>(function(){var s=document.getElementById("splash");function x(){if(s){s.remove();s=null}}
-setTimeout(x,matchMedia("(prefers-reduced-motion:reduce)").matches?450:2300);s.addEventListener("pointerdown",x)})()</script>
+setTimeout(x,matchMedia("(prefers-reduced-motion:reduce)").matches?1300:3400);s.addEventListener("pointerdown",x)})()</script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
